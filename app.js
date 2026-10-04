@@ -2,6 +2,22 @@
 
 // Default Seed Data Store
 const seedData = {
+  firm: {
+    name: 'Rao & Co.',
+    legalName: 'Rao & Co. CPAs',
+    monogram: 'R',
+    shortName: 'R&C',
+    brandColor: '#1b4d3e',
+    officeLabel: 'Firm Office',
+    address: '4th Floor, Sterling Chambers, 12 Church Street, Bengaluru 560001',
+    phone: '+91 80 4123 8890',
+    email: 'admin@raoandco.ca',
+    gstin: '29AABCR4821M1Z4',
+    pan: 'AABCR4821M',
+    membershipNo: 'CA-2011-118742',
+    regulator: 'ICAI — Bengaluru South',
+    footerNote: 'Rao & Co., Chartered Accountants'
+  },
   users: [
     { id: 'u1', name: 'Rithvik Shah', role: 'Partner', initials: 'RS', avatarBg: '#6d42c7' },
     { id: 'u2', name: 'Rahul Mehta', role: 'Manager', initials: 'RM', avatarBg: '#1b4d3e' },
@@ -412,7 +428,9 @@ class AppState {
   loadFromStorage() {
     try {
       const stored = localStorage.getItem('acc_workplace_os_data');
-      return stored ? JSON.parse(stored) : seedData;
+      // Merge over seedData so a stored blob from an older build still gets
+      // any newly added top-level collections (e.g. `firm`).
+      return stored ? { ...seedData, ...JSON.parse(stored) } : seedData;
     } catch (e) {
       return seedData;
     }
@@ -456,6 +474,63 @@ function getClient(id) {
 
 function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
+// ---------- FIRM BRANDING ----------
+// Everything visual about the firm is configurable; nothing is hardcoded.
+function hexToRgb(hex) {
+  const h = String(hex || '').replace('#', '').trim();
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(full, 16);
+  if (Number.isNaN(n) || full.length !== 6) return { r: 27, g: 77, b: 62 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function toHex(r, g, b) {
+  const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+  return '#' + [r, g, b].map(v => clamp(v).toString(16).padStart(2, '0')).join('');
+}
+
+// amount > 0 mixes toward white, < 0 mixes toward black.
+function shade(hex, amount) {
+  const { r, g, b } = hexToRgb(hex);
+  const t = amount > 0 ? 255 : 0;
+  const p = Math.abs(amount);
+  return toHex(r + (t - r) * p, g + (t - g) * p, b + (t - b) * p);
+}
+
+function rgbaOf(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function firm() {
+  return state.data.firm || {};
+}
+
+// Derives the full palette from one brand colour, so changing the swatch
+// rebrands every var(--emerald*) consumer across the app.
+function applyFirmBranding() {
+  const f = firm();
+  const brand = f.brandColor || '#1b4d3e';
+  const root = document.documentElement;
+
+  root.style.setProperty('--emerald', brand);
+  root.style.setProperty('--forest', shade(brand, -0.55));
+  root.style.setProperty('--emerald-light', shade(brand, 0.18));
+  root.style.setProperty('--emerald-soft', shade(brand, 0.88));
+  root.style.setProperty('--emerald-border', shade(brand, 0.62));
+  root.style.setProperty('--emerald-glow', rgbaOf(brand, 0.25));
+
+  document.querySelectorAll('[data-firm]').forEach(el => {
+    const val = f[el.dataset.firm];
+    if (val) el.textContent = val;
+  });
+
+  const sub = document.getElementById('firm-subtitle');
+  if (sub) sub.textContent = `${state.data.users.length} Members · ${f.officeLabel || 'Firm Office'}`;
+
+  if (f.name) document.title = `${f.name} — Operating System for Practice`;
 }
 
 function renderBadge(status) {
@@ -1435,7 +1510,7 @@ function renderClientPortal() {
     <div class="grid-2-1">
       <div class="card">
         <div class="card-title-row">
-          <div class="card-title">Document Requests from Rao &amp; Co.</div>
+          <div class="card-title">Document Requests from ${firm().legalName || ''}</div>
         </div>
         ${reqs.map(r => `
           <div style="border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px;">
@@ -1466,6 +1541,133 @@ function renderClientPortal() {
   `;
 }
 
+// 17. FIRM SETTINGS
+const BRAND_PRESETS = ['#1b4d3e', '#1e3a5f', '#4a2c5a', '#7c2d3a', '#0f4c5c', '#2d4a2e', '#3d3520'];
+
+function renderFirmSettings() {
+  const f = firm();
+  const brand = f.brandColor || '#1b4d3e';
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Configuration</div>
+        <h1>Firm Settings</h1>
+        <p>Brand identity and registration details. Applied workspace-wide and saved locally.</p>
+      </div>
+      <button class="btn-secondary" data-action="reset-firm">Reset to Defaults</button>
+    </div>
+
+    <div class="brand-preview-card">
+      <div class="brand-preview-row">
+        <div class="brand-preview-icon" id="brand-preview-icon" style="background:${brand}">${f.monogram || ''}</div>
+        <div>
+          <div class="brand-preview-name" id="brand-preview-name">${f.legalName || ''}</div>
+          <div class="brand-preview-sub" id="brand-preview-sub">${f.tagline || 'Chartered Accountants'}</div>
+        </div>
+      </div>
+      <div class="brand-preview-swatches">
+        ${['--emerald', '--forest', '--emerald-light', '--emerald-soft', '--emerald-border'].map(v => `
+          <div class="mini-swatch-row">
+            <span class="mini-swatch" style="background:var(${v})"></span>
+            <code>${v}</code>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <form id="firm-settings-form">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Identity</div></div>
+          <div class="form-group">
+            <label>Brand Name (short, shown in breadcrumb)</label>
+            <input name="name" value="${f.name || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Full Legal Name</label>
+            <input name="legalName" value="${f.legalName || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Short Name (badge)</label>
+            <input name="shortName" value="${f.shortName || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Monogram / Logo Initial</label>
+            <input name="monogram" maxlength="3" value="${f.monogram || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Office Label</label>
+            <input name="officeLabel" value="${f.officeLabel || ''}" />
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title-row"><div class="card-title">Brand Colour</div></div>
+          <div class="form-group">
+            <label>Primary Brand Colour</label>
+            <div class="color-input-row">
+              <input type="color" name="brandColor" id="firm-color-input" value="${brand}" />
+              <input type="text" name="brandColorHex" id="firm-color-hex" value="${brand}" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Presets</label>
+            <div class="preset-row">
+              ${BRAND_PRESETS.map(c => `
+                <button type="button" class="preset-swatch" data-preset-color="${c}"
+                  style="background:${c}" title="${c}"></button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Report Footer</label>
+            <input name="footerNote" value="${f.footerNote || ''}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title-row"><div class="card-title">Registration &amp; Contact</div></div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>GSTIN</label>
+            <input name="gstin" value="${f.gstin || ''}" />
+          </div>
+          <div class="form-group">
+            <label>PAN</label>
+            <input name="pan" value="${f.pan || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Membership No.</label>
+            <input name="membershipNo" value="${f.membershipNo || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Regulator / Region</label>
+            <input name="regulator" value="${f.regulator || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input name="phone" value="${f.phone || ''}" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input name="email" value="${f.email || ''}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Registered Address</label>
+          <textarea name="address" rows="2">${f.address || ''}</textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">Save Firm Settings</button>
+      </div>
+    </form>
+  `;
+}
+
 // MAIN APP NAVIGATION RENDER ROUTER
 function navigateTo(viewName) {
   state.currentView = viewName;
@@ -1493,7 +1695,8 @@ function navigateTo(viewName) {
     reports: 'Manager Reports',
     assistant: 'AI Assistant',
     announcements: 'Announcements',
-    auditlog: 'Audit Log'
+    auditlog: 'Audit Log',
+    firmsettings: 'Firm Settings'
   };
   pageTitleBc.textContent = labelMap[viewName] || 'Overview';
 
@@ -1519,6 +1722,7 @@ function navigateTo(viewName) {
     case 'assistant': appView.innerHTML = renderAssistant(); break;
     case 'announcements': appView.innerHTML = renderAnnouncements(); break;
     case 'auditlog': appView.innerHTML = renderAuditLog(); break;
+    case 'firmsettings': appView.innerHTML = renderFirmSettings(); break;
     default: appView.innerHTML = renderHome(); break;
   }
 }
@@ -1731,6 +1935,13 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (act === 'new-request') openCreateModal('client request');
       else if (act === 'new-event') openCreateModal('calendar event');
       else if (act === 'new-announcement') openCreateModal('announcement');
+      else if (act === 'reset-firm') {
+        state.data.firm = { ...seedData.firm };
+        state.save();
+        applyFirmBranding();
+        toast('Firm settings reset to defaults');
+        navigateTo('firmsettings');
+      }
       else toast(`Action triggered: ${act}`);
       return;
     }
@@ -1773,6 +1984,63 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Switched to Restricted Client Portal Mode');
     };
   }
+
+  // Firm Settings — live brand preview while editing, and persistence on save.
+  document.body.addEventListener('input', (e) => {
+    const colorInput = document.getElementById('firm-color-input');
+    if (!colorInput) return;
+    if (e.target.id !== 'firm-color-input' && e.target.id !== 'firm-color-hex') return;
+
+    const raw = e.target.value.trim();
+    if (!/^#?[0-9a-fA-F]{6}$/.test(raw)) return;
+
+    const hex = raw.startsWith('#') ? raw : '#' + raw;
+    if (e.target.id === 'firm-color-hex') colorInput.value = hex;
+
+    // Preview only — the committed palette still waits for Save.
+    document.documentElement.style.setProperty('--emerald', hex);
+    document.documentElement.style.setProperty('--forest', shade(hex, -0.55));
+    document.documentElement.style.setProperty('--emerald-light', shade(hex, 0.18));
+    document.documentElement.style.setProperty('--emerald-soft', shade(hex, 0.88));
+    document.documentElement.style.setProperty('--emerald-border', shade(hex, 0.62));
+    document.documentElement.style.setProperty('--emerald-glow', rgbaOf(hex, 0.25));
+
+    const previewIcon = document.getElementById('brand-preview-icon');
+    if (previewIcon) previewIcon.style.background = hex;
+  });
+
+  document.body.addEventListener('click', (e) => {
+    const preset = e.target.closest('[data-preset-color]');
+    if (preset) {
+      const hex = preset.dataset.presetColor;
+      document.getElementById('firm-color-input').value = hex;
+      document.getElementById('firm-color-hex').value = hex;
+      document.getElementById('firm-color-input').dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+
+  document.body.addEventListener('submit', (e) => {
+    if (e.target.id !== 'firm-settings-form') return;
+    e.preventDefault();
+
+    const form = e.target;
+    const next = { ...firm() };
+    ['name', 'legalName', 'shortName', 'monogram', 'officeLabel', 'gstin', 'pan',
+     'membershipNo', 'regulator', 'phone', 'email', 'address', 'footerNote']
+      .forEach(k => { next[k] = form.elements[k].value.trim(); });
+
+    const hex = form.elements.brandColorHex.value.trim();
+    next.brandColor = /^#?[0-9a-fA-F]{6}$/.test(hex)
+      ? (hex.startsWith('#') ? hex : '#' + hex)
+      : (firm().brandColor || '#1b4d3e');
+
+    state.data.firm = next;
+    state.save();
+    applyFirmBranding();
+    state.addAuditLog(state.data.users[0].name, 'Updated Firm Settings', next.legalName || next.name);
+    toast('Firm settings saved');
+    navigateTo('firmsettings');
+  });
 
   // Chat Composer Submission
   document.body.addEventListener('submit', (e) => {
@@ -1819,6 +2087,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Initialize Default View
+  // Initialize: apply configured firm branding, then render the default view.
+  applyFirmBranding();
   navigateTo('home');
 });

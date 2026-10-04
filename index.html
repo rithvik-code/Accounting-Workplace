@@ -12,16 +12,16 @@
     <!-- Left Navigation Sidebar -->
     <aside class="sidebar" aria-label="Main Navigation">
       <div class="brand">
-        <div class="brand-icon">A</div>
-        <div class="brand-text">AccWorkplace</div>
-        <div class="brand-tag">OS</div>
+        <div class="brand-icon" data-firm="monogram">R</div>
+        <div class="brand-text" data-firm="name">Rao &amp; Co.</div>
+        <div class="brand-tag" data-firm="shortName">R&amp;C</div>
       </div>
 
       <div class="workspace-card" id="workspace-card" title="Click to switch firm workspace">
-        <div class="workspace-avatar">R</div>
+        <div class="workspace-avatar" data-firm="monogram">R</div>
         <div class="workspace-details">
-          <div class="workspace-name">Rao &amp; Co. CPAs</div>
-          <div class="workspace-subtitle">7 Members · Firm Office</div>
+          <div class="workspace-name" data-firm="legalName">Rao &amp; Co. CPAs</div>
+          <div class="workspace-subtitle" id="firm-subtitle">5 Members · Firm Office</div>
         </div>
         <span style="font-size:10px;color:var(--ink-subtle)">▼</span>
       </div>
@@ -83,6 +83,9 @@
         <button class="nav-item" data-view="search">
           <span class="nav-icon">🔎</span> <span>Search</span>
         </button>
+        <button class="nav-item" data-view="firmsettings">
+          <span class="nav-icon">⚙️</span> <span>Firm Settings</span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -101,7 +104,7 @@
       <header class="topbar">
         <div class="topbar-left">
           <div class="breadcrumb">
-            <span id="bc-firm">Rao &amp; Co.</span>
+            <span id="bc-firm" data-firm="name">Rao &amp; Co.</span>
             <span class="sep">/</span>
             <span class="current" id="bc-page">Home</span>
           </div>
