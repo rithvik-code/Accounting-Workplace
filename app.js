@@ -2633,7 +2633,7 @@ function renderPayments() {
         approvalCell = '<span class="badge badge-green">Paid</span>';
       } else if (!needsApproval) {
         // Below threshold: authorised without a second signature.
-        approvalCell = '<span class="muted">auto · below threshold</span>';
+        approvalCell = '<span class="muted">auto</span>';
       } else if (approvals.length > 0) {
         approvalCell = '<span class="badge badge-green">Approved · ' + approvals.join(', ') + '</span>';
       } else {

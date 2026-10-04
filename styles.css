@@ -1996,11 +1996,10 @@ body {
 /* Flexbox overflow fix: without min-width:0 the body refuses to shrink below
    its content, shoving the trailing columns onto their own line. */
 .pay-row .task-body { min-width: 0; }
-.pay-row .task-title-line { overflow-wrap: anywhere; }
 
 .pay-approval {
-  flex: 0 0 190px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 0 150px;
+  line-height: 1.35;
 }
+
+.pay-amount, .pay-balance { width: 104px; }
