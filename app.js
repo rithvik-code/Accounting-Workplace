@@ -571,8 +571,8 @@ function getInitials(name) {
 const ALL_ROLES = ['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee'];
 
 const CAPABILITIES = {
-  Partner:    ['view.allClients', 'view.firmFinancials', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.final', 'create.client', 'create.task', 'upload.doc', 'announce', 'manage.users'],
-  Manager:    ['view.allClients', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.manager', 'create.client', 'create.task', 'upload.doc', 'announce'],
+  Partner:    ['view.allClients', 'view.firmFinancials', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.final', 'approve.payment', 'create.client', 'create.task', 'upload.doc', 'announce', 'manage.users'],
+  Manager:    ['view.allClients', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.manager', 'approve.payment', 'create.client', 'create.task', 'upload.doc', 'announce'],
   Senior:     ['view.clientFinancials', 'approve.senior', 'create.task', 'upload.doc'],
   Accountant: ['create.task', 'upload.doc'],
   Trainee:    ['create.task.own', 'upload.doc']
@@ -589,6 +589,7 @@ const NAV_ACCESS = {
   reviews: ['Partner', 'Manager', 'Senior'],
   requests: ['Partner', 'Manager', 'Senior', 'Accountant'],
   gstrecon: ['Partner', 'Manager', 'Senior'],
+  payments: ['Partner', 'Manager'],
   knowledge: ALL_ROLES,
   reports: ['Partner', 'Manager'],
   assistant: ALL_ROLES,
@@ -610,7 +611,8 @@ const ACTION_ACCESS = {
   'new-announcement': 'announce',
   'reset-firm': 'manage.users',
   'recon-apply-tolerance': 'approve.manager',
-  'workspace-pick': 'view.allClients'
+  'workspace-pick': 'view.allClients',
+  'pay-approve': 'approve.payment'
 };
 
 const MODAL_ACCESS = {
@@ -2373,6 +2375,344 @@ function applyNavPermissions() {
   });
 }
 
+// 22. PAYMENTS OUT — CASH & STATUTORY WINDOW
+// Due dates are DERIVED from a period, never stored. Given a month, the
+// obligations fall out at fixed offsets per the Indian compliance calendar.
+const STATUTORY_RULES = [
+  { id: 'tds-deposit', label: 'TDS / TCS Deposit', dayOfNextMonth: 7, category: 'TDS', freq: 'monthly' },
+  { id: 'gstr-1', label: 'GSTR-1 (Outward Supplies)', dayOfNextMonth: 11, category: 'GST', freq: 'monthly' },
+  { id: 'epf-esi', label: 'EPF + ESI Contribution', dayOfNextMonth: 15, category: 'Payroll', freq: 'monthly' },
+  { id: 'gstr-3b', label: 'GSTR-3B (Tax Payment)', dayOfNextMonth: 20, category: 'GST', freq: 'monthly' }
+];
+
+// Indian financial year runs April to March. FY 2026-27 = 2026-04 .. 2027-03.
+function parseMonthKey(mk) {
+  const [y, m] = mk.split('-').map(Number);
+  return { year: y, month: m };
+}
+
+// The due date is `dayOfNextMonth` days into the month AFTER the period.
+function dueDateForPeriod(periodKey, dayOfNextMonth) {
+  const { year, month } = parseMonthKey(periodKey);
+  const ny = month === 12 ? year + 1 : year;
+  const nm = month === 12 ? 1 : month + 1;
+  const lastDay = new Date(ny, nm, 0).getDate();
+  const day = Math.min(dayOfNextMonth, lastDay);
+  return monthKeyKey(ny, nm) + '-' + String(day).padStart(2, '0');
+}
+
+// Fixed-date obligations within FY 2026-27.
+const ADVANCE_TAX_DATES = ['2026-06-15', '2026-09-15', '2026-12-15', '2027-03-15'];
+const TDS_RETURN_DATES = ['2026-07-31', '2026-10-31', '2027-01-31', '2027-05-07'];
+const ITR_DATES = [
+  { date: '2026-07-31', label: 'ITR — Non-Audit', rate: 0 },
+  { date: '2026-10-31', label: 'ITR — Audit Cases', rate: 0 }
+];
+
+// ITC is claimable only for lines that actually reconciled. A line missing from
+// 2B was never on the portal; one missing from the register was never booked;
+// an unresolved variance has not been accepted. None of those may claim credit.
+function eligibleItc(monthKeyStr) {
+  const gr = state.data.gstRecons.find(g => g.month === monthKeyStr);
+  if (!gr) return 0;
+  return reconcileGst(gr).reduce((sum, r) => {
+    const claimable = r.status === 'Matched' || r.resolution === 'Variance Accepted';
+    if (!claimable || !r.pr) return sum;
+    return sum + (Number(r.pr.igst) || 0);
+  }, 0);
+}
+
+function outputTaxFor(monthKeyStr) {
+  return (state.data.salesRegisters || [])
+    .filter(s => s.month === monthKeyStr)
+    .reduce((sum, s) => sum + (Number(s.outputTax) || 0), 0);
+}
+
+function tdsFor(monthKeyStr) {
+  return (state.data.deducteeEntries || [])
+    .filter(d => d.month === monthKeyStr)
+    .reduce((sum, d) => sum + (Number(d.tax) || 0), 0);
+}
+
+function payrollFor(monthKeyStr) {
+  const run = (state.data.payrollRuns || []).find(r => r.month === monthKeyStr);
+  if (!run) return null;
+  return (Number(run.pfEmployee) || 0) + (Number(run.pfEmployer) || 0) + (Number(run.esi) || 0);
+}
+
+function advanceTaxInstalment() {
+  const prof = state.data.firmTaxProfile || {};
+  if (prof.presumptive) return Math.round((Number(prof.prevYearAssessedTax) || 0) * 0.75 / 4);
+  return Math.round((Number(prof.prevYearAssessedTax) || 0) * 0.9 / 4);
+}
+
+// Build every obligation falling due in [from, to].
+function generateObligations(from, to) {
+  const out = [];
+
+  // Monthly obligations: walk periods whose due date lands in the window.
+  const startKey = parseMonthKey(from.slice(0, 7));
+  for (let i = -1; i <= 2; i++) {
+    let y = startKey.year, m = startKey.month + i;
+    while (m > 12) { m -= 12; y += 1; }
+    while (m < 1) { m += 12; y -= 1; }
+    const period = monthKeyKey(y, m);
+
+    STATUTORY_RULES.forEach(rule => {
+      const due = dueDateForPeriod(period, rule.dayOfNextMonth);
+      if (due < from || due > to) return;
+
+      let amount = null, detail = '';
+      if (rule.id === 'tds-deposit') {
+        amount = tdsFor(period);
+        detail = 'Deposit on TDS deducted during ' + periodLabel(period);
+      } else if (rule.id === 'gstr-1') {
+        amount = 0;
+        detail = 'Return for outward supplies of ' + periodLabel(period);
+      } else if (rule.id === 'epf-esi') {
+        amount = payrollFor(period);
+        detail = payrollFor(period) === null
+          ? 'No payroll run recorded for ' + periodLabel(period)
+          : 'Employee + employer PF and ESI for ' + periodLabel(period);
+      } else if (rule.id === 'gstr-3b') {
+        const outputTax = outputTaxFor(period);
+        const itc = eligibleItc(period);
+        amount = outputTax - itc;
+        detail = 'Output tax ' + inr(outputTax) + ' less eligible ITC ' + inr(itc) +
+                 (itc === 0 && outputTax > 0 ? ' (no reconciliation on file for this period)' : '');
+      }
+
+      out.push({
+        id: rule.id + '-' + period,
+        kind: 'Statutory',
+        title: rule.label,
+        category: rule.category,
+        dueDate: due,
+        period,
+        amount,
+        detail,
+        derived: true
+      });
+    });
+  }
+
+  ADVANCE_TAX_DATES.forEach((date, idx) => {
+    if (date < from || date > to) return;
+    out.push({
+      id: 'advance-tax-' + idx,
+      kind: 'Statutory',
+      title: 'Advance Tax — Instalment ' + (idx + 1),
+      category: 'Income Tax',
+      dueDate: date,
+      period: null,
+      amount: advanceTaxInstalment(),
+      detail: '90% of last year assessed tax, in four instalments',
+      derived: true
+    });
+  });
+
+  TDS_RETURN_DATES.forEach((date, idx) => {
+    if (date < from || date > to) return;
+    out.push({
+      id: 'tds-return-' + idx,
+      kind: 'Statutory',
+      title: 'TDS Return — Q' + (idx + 1),
+      category: 'TDS',
+      dueDate: date,
+      period: null,
+      amount: 0,
+      detail: 'Quarterly TDS/TCS statement and e-filing',
+      derived: true
+    });
+  });
+
+  ITR_DATES.forEach(it => {
+    if (it.date < from || it.date > to) return;
+    out.push({
+      id: 'itr-' + it.date,
+      kind: 'Statutory',
+      title: it.label,
+      category: 'Income Tax',
+      dueDate: it.date,
+      period: null,
+      amount: 0,
+      detail: 'Annual return filing deadline',
+      derived: true
+    });
+  });
+
+  // Manual / operational payments.
+  (state.data.payments || []).forEach(p => {
+    if (p.dueDate < from || p.dueDate > to) return;
+    out.push({
+      id: p.id,
+      kind: 'Operational',
+      title: p.title,
+      category: p.category,
+      dueDate: p.dueDate,
+      period: null,
+      amount: p.amount,
+      detail: 'Prepared by ' + p.preparedBy,
+      derived: false,
+      record: p
+    });
+  });
+
+  return out.sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+}
+
+function monthKeyKey(y, m) { return y + '-' + String(m).padStart(2, '0'); }
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function periodLabel(mk) {
+  const { year, month } = parseMonthKey(mk);
+  return MONTH_NAMES[month - 1] + ' ' + year;
+}
+
+function shortDate(d) {
+  const dt = new Date(d + 'T00:00:00');
+  return String(dt.getDate()).padStart(2, '0') + ' ' + MONTH_NAMES[dt.getMonth()].slice(0, 3);
+}
+
+// Running cash position: obligations reduce cash as they fall due.
+function buildCashCurve(obligations, openingBalance) {
+  let running = openingBalance;
+  return obligations.map(o => {
+    running -= (Number(o.amount) || 0);
+    return Object.assign({}, o, { balanceAfter: running });
+  });
+}
+
+// Approval threshold for operational payments; above this a second pair of eyes
+// is required, and the preparer can never be that second pair of eyes.
+const PAYMENT_APPROVAL_THRESHOLD = 100000;
+
+function paymentNeedsApproval(p) {
+  return (Number(p.amount) || 0) > PAYMENT_APPROVAL_THRESHOLD;
+}
+
+// Same segregation-of-duties shape as document review: the preparer of a
+// payment does not get to approve it.
+function canApprovePayment(p) {
+  const me = currentUser();
+  if (!can('approve.payment')) {
+    return { ok: false, reason: me.role + ' role cannot approve payments.' };
+  }
+  if (p.preparedBy === me.name) {
+    return { ok: false, reason: 'You prepared this payment, so you cannot approve it.' };
+  }
+  if ((p.approvals || []).includes(me.name)) {
+    return { ok: false, reason: 'You have already approved this payment.' };
+  }
+  return { ok: true };
+}
+
+function renderPayments() {
+  const from = state.payFrom || '2026-10-01';
+  const to = state.payTo || '2026-10-31';
+  const account = (state.data.bankAccounts || [])[0] || { balance: 0, name: 'No account', asOf: '-' };
+
+  const obligations = buildCashCurve(generateObligations(from, to), account.balance);
+  const statutoryCount = obligations.filter(o => o.kind === 'Statutory').length;
+  const operationalCount = obligations.length - statutoryCount;
+
+  const totalOut = obligations.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const closing = account.balance - totalOut;
+  const shortfall = closing < 0 ? Math.abs(closing) : 0;
+  const firstNegative = obligations.find(o => o.balanceAfter < 0);
+
+  const rowFor = (o) => {
+    const negative = o.balanceAfter < 0;
+    let approvalCell;
+    if (o.derived) {
+      approvalCell = '<span class="muted">derived</span>';
+    } else {
+      const approvals = o.record.approvals || [];
+      const needsApproval = paymentNeedsApproval(o.record);
+      if (o.record.status === 'Paid') {
+        approvalCell = '<span class="badge badge-green">Paid</span>';
+      } else if (!needsApproval) {
+        // Below threshold: authorised without a second signature.
+        approvalCell = '<span class="muted">auto · below threshold</span>';
+      } else if (approvals.length > 0) {
+        approvalCell = '<span class="badge badge-green">Approved · ' + approvals.join(', ') + '</span>';
+      } else {
+        const verdict = canApprovePayment(o.record);
+        approvalCell = verdict.ok
+          ? '<button class="btn-secondary" data-action="pay-approve" data-pay-id="' + o.record.id + '">Approve</button>'
+          : '<span class="field-redacted" title="' + verdict.reason + '">🔒 ' + verdict.reason + '</span>';
+      }
+    }
+
+    return '<div class="task-item pay-row">' +
+      '<div class="pay-date">' + shortDate(o.dueDate) + '</div>' +
+      '<div class="task-body">' +
+        '<div class="task-title-line">' +
+          '<span class="pay-kind pay-kind-' + o.kind.toLowerCase() + '">' + o.kind + '</span>' +
+          o.title + ' <span class="badge badge-gray">' + o.category + '</span>' +
+        '</div>' +
+        '<div class="task-meta-line">' + o.detail + '</div>' +
+      '</div>' +
+      '<div class="pay-amount">' + (o.amount === null ? '<span class="muted">n/a</span>' : inr(o.amount)) + '</div>' +
+      '<div class="pay-balance ' + (negative ? 'pay-negative' : '') + '">' + inr(o.balanceAfter) + '</div>' +
+      '<div class="pay-approval">' + approvalCell + '</div>' +
+    '</div>';
+  };
+
+  return '<div class="page-header">' +
+      '<div class="page-header-title">' +
+        '<div class="eyebrow">Treasury</div>' +
+        '<h1>Payments Out — Cash &amp; Statutory Window</h1>' +
+        '<p>Every obligation falling due between two dates, with the running cash position.</p>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="card">' +
+      '<div class="tolerance-row">' +
+        '<div class="form-group" style="margin:0;"><label>From</label>' +
+          '<input type="date" id="pay-from" value="' + from + '" /></div>' +
+        '<div class="form-group" style="margin:0;"><label>To</label>' +
+          '<input type="date" id="pay-to" value="' + to + '" /></div>' +
+        '<button class="btn-primary" data-action="pay-refresh">Recompute</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="grid-4" style="margin-bottom:24px;">' +
+      '<div class="stat-box"><div class="stat-header">Opening Balance</div>' +
+        '<div class="stat-value" style="font-size:20px;">' + inr(account.balance) + '</div>' +
+        '<div class="stat-meta">' + account.name + ' · as of ' + account.asOf + '</div></div>' +
+      '<div class="stat-box alert-yellow"><div class="stat-header">Total Outflow</div>' +
+        '<div class="stat-value" style="font-size:20px;">' + inr(totalOut) + '</div>' +
+        '<div class="stat-meta">' + obligations.length + ' obligations in window</div></div>' +
+      '<div class="stat-box"><div class="stat-header">Projected Closing</div>' +
+        '<div class="stat-value" style="font-size:20px;color:' + (closing < 0 ? 'var(--red)' : 'var(--green)') + '">' + inr(closing) + '</div>' +
+        '<div class="stat-meta">after everything in the window</div></div>' +
+      '<div class="stat-box ' + (shortfall > 0 ? 'alert-red' : '') + '"><div class="stat-header">Shortfall</div>' +
+        '<div class="stat-value" style="font-size:20px;color:' + (shortfall > 0 ? 'var(--red)' : 'var(--ink)') + '">' + (shortfall > 0 ? inr(shortfall) : '—') + '</div>' +
+        '<div class="stat-meta">' + (shortfall > 0 ? 'funding required before the window closes' : 'window is fully funded') + '</div></div>' +
+    '</div>' +
+
+    (shortfall > 0
+      ? '<div class="perm-banner">⚠️ Projected to fall short by ' + inr(shortfall) +
+        ' across this window. Earliest pressure point is ' + shortDate(firstNegative.dueDate) + '.</div>'
+      : '') +
+
+    '<div class="card">' +
+      '<div class="card-title-row">' +
+        '<div class="card-title">Timeline (' + obligations.length + ')</div>' +
+        '<div class="card-title" style="font-size:11px;color:var(--ink-muted);font-weight:500;">' +
+          statutoryCount + ' statutory · ' + operationalCount + ' operational · over ' +
+          inr(PAYMENT_APPROVAL_THRESHOLD) + ' needs approval' +
+        '</div>' +
+      '</div>' +
+      '<div class="task-list">' +
+        (obligations.length === 0
+          ? '<div class="empty-state">No obligations fall due in this window.</div>'
+          : obligations.map(rowFor).join('')) +
+      '</div>' +
+    '</div>';
+}
+
 // MAIN APP NAVIGATION RENDER ROUTER
 function navigateTo(viewName) {
   if (viewName !== 'home' && !canSee(viewName)) {
@@ -2414,6 +2754,7 @@ function navigateTo(viewName) {
     search: 'Search',
     notifications: 'Notifications',
     workspace: 'Switch Workspace',
+    payments: 'Payments Out',
     gstrecon: 'GST 2A/2B Recon'
   };
   pageTitleBc.textContent = labelMap[viewName] || 'Overview';
@@ -2445,6 +2786,7 @@ function navigateTo(viewName) {
     case 'notifications': appView.innerHTML = renderNotifications(); break;
     case 'workspace': appView.innerHTML = renderWorkspace(); break;
     case 'gstrecon': appView.innerHTML = renderGstRecon(); break;
+    case 'payments': appView.innerHTML = renderPayments(); break;
     default: appView.innerHTML = renderHome(); break;
   }
 }
@@ -2705,6 +3047,24 @@ document.addEventListener('DOMContentLoaded', () => {
           state.activeClientSubTab = 'overview';
         }
         navigateTo(target || 'home');
+      }
+      else if (act === 'pay-refresh') {
+        state.payFrom = document.getElementById('pay-from').value;
+        state.payTo = document.getElementById('pay-to').value;
+        navigateTo('payments');
+        toast('Window recomputed');
+      }
+      else if (act === 'pay-approve') {
+        const rec = state.data.payments.find(p => p.id === actBtn.dataset.payId);
+        if (!rec) { toast('Payment not found'); return; }
+        const verdict = canApprovePayment(rec);
+        if (!verdict.ok) { toast(`Cannot approve · ${verdict.reason}`); return; }
+        rec.approvals = (rec.approvals || []).concat(currentUser().name);
+        rec.status = rec.approvals.length >= 2 ? 'Paid' : 'Open';
+        state.save();
+        state.addAuditLog(currentUser().name, 'Approved Payment', rec.title);
+        toast(`${rec.title} approved by ${currentUser().name}`);
+        navigateTo('payments');
       }
       else if (act === 'recon-filter') {
         state.reconFilter = actBtn.dataset.filter;

@@ -1930,3 +1930,77 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ---------- PAYMENTS OUT WINDOW ---------- */
+.pay-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pay-date {
+  width: 62px;
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-amount,
+.pay-balance {
+  width: 118px;
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  flex-shrink: 0;
+}
+
+.pay-balance {
+  color: var(--ink-muted);
+}
+
+.pay-negative {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.pay-approval {
+  width: 250px;
+  flex-shrink: 0;
+  font-size: 11px;
+  text-align: right;
+}
+
+@media (max-width: 860px) {
+  .pay-row { flex-wrap: wrap; }
+  .pay-approval { width: 100%; text-align: left; }
+}
+
+.pay-kind {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+.pay-kind-statutory { background: var(--purple-soft); color: var(--purple); }
+.pay-kind-operational { background: var(--cream-dark); color: var(--ink-muted); }
+
+
+/* Flexbox overflow fix: without min-width:0 the body refuses to shrink below
+   its content, shoving the trailing columns onto their own line. */
+.pay-row .task-body { min-width: 0; }
+.pay-row .task-title-line { overflow-wrap: anywhere; }
+
+.pay-approval {
+  flex: 0 0 190px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
