@@ -18,12 +18,56 @@ const seedData = {
     regulator: 'ICAI — Bengaluru South',
     footerNote: 'Rao & Co., Chartered Accountants'
   },
+  gstRecons: [
+    {
+      id: 'gr1',
+      clientId: 'c1',
+      clientName: 'ABC Manufacturing Pvt Ltd',
+      gstin: '29AABCR4821M1Z4',
+      period: 'August 2026',
+      toleranceAbs: 100,
+      tolerancePct: 1,
+      resolutions: {},
+      // Purchase register as recorded in the books.
+      purchaseRegister: [
+        { line: 1, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1001', invoiceDate: '2026-08-02', party: 'Kumar Traders', taxable: 100000, igst: 18000, total: 118000 },
+        { line: 2, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1002', invoiceDate: '2026-08-04', party: 'Sharma Steel Works', taxable: 100000, igst: 18000, total: 118000 },
+        { line: 3, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1003', invoiceDate: '2026-08-07', party: 'Deepak Polymers', taxable: 45000, igst: 8100, total: 53100 },
+        { line: 4, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1004', invoiceDate: '2026-08-09', party: 'Vertex Components', taxable: 186525, igst: 33575, total: 220100 },
+        { line: 5, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1005', invoiceDate: '2026-08-11', party: 'Nandi Logistics', taxable: 76102, igst: 13698, total: 89800 },
+        { line: 6, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1006', invoiceDate: '2026-08-13', party: 'Axis Industrial', taxable: 54237, igst: 9763, total: 64000 },
+        { line: 7, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1007', invoiceDate: '2026-08-15', party: 'Nova Chemicals', taxable: 10593, igst: 1907, total: 12500 },
+        { line: 8, gstin: '29AABCR4821M1Z4', invoiceNo: '  inv-1008', invoiceDate: '2026-08-17', party: 'Bharat Electricals', taxable: 60424, igst: 10876, total: 71300 },
+        { line: 9, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1009', invoiceDate: '2026-08-19', party: 'Sundar Packaging', taxable: 262712, igst: 47288, total: 310000 },
+        { line: 10, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1010', invoiceDate: '2026-08-21', party: 'Modern Fabrics', taxable: 23220, igst: 4180, total: 27400 },
+        { line: 11, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1012', invoiceDate: '2026-08-25', party: 'Precision Tools', taxable: 80678, igst: 14522, total: 95200 },
+        { line: 12, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1014', invoiceDate: '2026-08-28', party: 'Trinity Hardware', taxable: 60593, igst: 10907, total: 71500 },
+        { line: 13, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1015', invoiceDate: '2026-08-29', party: 'Kalyan Castings', taxable: 50000, igst: 9000, total: 59000 }
+      ],
+      // GSTR-2B as auto-populated from the portal.
+      portal2b: [
+        { line: 1, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1001', invoiceDate: '2026-08-02', party: 'Kumar Traders', taxable: 100000, igst: 18000, total: 118000 },
+        { line: 2, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1002', invoiceDate: '2026-08-04', party: 'Sharma Steel Works', taxable: 100000, igst: 18000, total: 118000 },
+        { line: 3, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1003', invoiceDate: '2026-08-07', party: 'Deepak Polymers', taxable: 45000, igst: 9865, total: 54865 },
+        { line: 4, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1004', invoiceDate: '2026-08-09', party: 'Vertex Components', taxable: 186525, igst: 33575, total: 220100 },
+        { line: 6, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1006', invoiceDate: '2026-08-13', party: 'Axis Industrial', taxable: 54237, igst: 9763, total: 64000 },
+        { line: 7, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1007', invoiceDate: '2026-08-15', party: 'Nova Chemicals', taxable: 10593, igst: 1907, total: 12550 },
+        { line: 8, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1008', invoiceDate: '2026-08-17', party: 'Bharat Electricals', taxable: 60424, igst: 10876, total: 71300 },
+        { line: 10, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1010', invoiceDate: '2026-08-21', party: 'Modern Fabrics', taxable: 23220, igst: 4180, total: 27400 },
+        { line: 11, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1011', invoiceDate: '2026-08-23', party: 'Orbit Castings', taxable: 49153, igst: 8847, total: 58000 },
+        { line: 12, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1012', invoiceDate: '2026-08-25', party: 'Precision Tools', taxable: 80678, igst: 16722, total: 97400 },
+        { line: 13, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1013', invoiceDate: '2026-08-26', party: 'Elite Fasteners', taxable: 12119, igst: 2181, total: 14300 },
+        { line: 14, gstin: '29AABCR4821M1Z4', invoiceNo: 'INV-1014', invoiceDate: '2026-08-28', party: 'Trinity Hardware', taxable: 60593, igst: 10907, total: 71500 },
+        { line: 15, gstin: '27AALCK1234P1Z9', invoiceNo: 'INV-1015', invoiceDate: '2026-08-29', party: 'Kalyan Castings', taxable: 50000, igst: 9000, total: 59000 }
+      ]
+    }
+  ],
   users: [
-    { id: 'u1', name: 'Rithvik Shah', role: 'Partner', initials: 'RS', avatarBg: '#6d42c7' },
-    { id: 'u2', name: 'Rahul Mehta', role: 'Manager', initials: 'RM', avatarBg: '#1b4d3e' },
-    { id: 'u3', name: 'Priya Nair', role: 'Senior', initials: 'PN', avatarBg: '#ca7007' },
-    { id: 'u4', name: 'Arjun Rao', role: 'Accountant', initials: 'AR', avatarBg: '#225cb8' },
-    { id: 'u5', name: 'Neha Sharma', role: 'Trainee', initials: 'NS', avatarBg: '#1f7a4c' }
+    { id: 'u1', name: 'Rithvik Shah', role: 'Partner', initials: 'RS', avatarBg: '#6d42c7', billableHours: 22, utilizationPct: 48 },
+    { id: 'u2', name: 'Rahul Mehta', role: 'Manager', initials: 'RM', avatarBg: '#1b4d3e', billableHours: 38, utilizationPct: 92 },
+    { id: 'u3', name: 'Priya Nair', role: 'Senior', initials: 'PN', avatarBg: '#ca7007', billableHours: 34, utilizationPct: 81 },
+    { id: 'u4', name: 'Arjun Rao', role: 'Accountant', initials: 'AR', avatarBg: '#225cb8', billableHours: 40, utilizationPct: 96 },
+    { id: 'u5', name: 'Neha Sharma', role: 'Trainee', initials: 'NS', avatarBg: '#1f7a4c', billableHours: 18, utilizationPct: 44 }
   ],
 
   clients: [
@@ -104,6 +148,7 @@ const seedData = {
       senior: 'Priya Nair',
       associates: ['Arjun Rao', 'Rithvik Shah'],
       progress: 78,
+      feeTotal: 850000, feeBilled: 663000, realizationPct: 78,
       tasksTotal: 34,
       tasksCompleted: 26,
       tasksOverdue: 2,
@@ -120,6 +165,7 @@ const seedData = {
       senior: 'Priya Nair',
       associates: ['Arjun Rao'],
       progress: 60,
+      feeTotal: 240000, feeBilled: 132000, realizationPct: 55,
       tasksTotal: 10,
       tasksCompleted: 6,
       tasksOverdue: 1,
@@ -136,6 +182,7 @@ const seedData = {
       senior: 'Arjun Rao',
       associates: ['Neha Sharma'],
       progress: 90,
+      feeTotal: 420000, feeBilled: 399000, realizationPct: 95,
       tasksTotal: 12,
       tasksCompleted: 11,
       tasksOverdue: 0,
@@ -152,6 +199,7 @@ const seedData = {
       senior: 'Arjun Rao',
       associates: ['Neha Sharma'],
       progress: 35,
+      feeTotal: 610000, feeBilled: 189100, realizationPct: 31,
       tasksTotal: 20,
       tasksCompleted: 7,
       tasksOverdue: 2,
@@ -423,6 +471,10 @@ class AppState {
     this.activeClientId = 'c1'; // Default selected client for mini-office
     this.activeClientSubTab = 'overview';
     this.activeChatChannel = '# General';
+    this.searchQuery = '';
+    this.workspaceMenuOpen = false;
+    this.reconFilter = 'All';
+    this.reconExpanded = null;
   }
 
   loadFromStorage() {
@@ -476,6 +528,120 @@ function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 }
 
+// ---------- PERMISSION MODEL ----------
+// One source of truth. Nothing below reads anything else for authorization.
+const ALL_ROLES = ['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee'];
+
+const CAPABILITIES = {
+  Partner:    ['view.allClients', 'view.firmFinancials', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.final', 'create.client', 'create.task', 'upload.doc', 'announce', 'manage.users'],
+  Manager:    ['view.allClients', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.manager', 'create.client', 'create.task', 'upload.doc', 'announce'],
+  Senior:     ['view.clientFinancials', 'approve.senior', 'create.task', 'upload.doc'],
+  Accountant: ['create.task', 'upload.doc'],
+  Trainee:    ['create.task.own', 'upload.doc']
+};
+
+const NAV_ACCESS = {
+  home: ALL_ROLES,
+  communication: ALL_ROLES,
+  clients: ['Partner', 'Manager', 'Senior', 'Accountant'],
+  mywork: ALL_ROLES,
+  deadlines: ['Partner', 'Manager', 'Senior', 'Accountant'],
+  calendar: ALL_ROLES,
+  documents: ALL_ROLES,
+  reviews: ['Partner', 'Manager', 'Senior'],
+  requests: ['Partner', 'Manager', 'Senior', 'Accountant'],
+  gstrecon: ['Partner', 'Manager', 'Senior'],
+  knowledge: ALL_ROLES,
+  reports: ['Partner', 'Manager'],
+  assistant: ALL_ROLES,
+  announcements: ['Partner', 'Manager'],
+  auditlog: ['Partner', 'Manager'],
+  search: ALL_ROLES,
+  notifications: ALL_ROLES,
+  workspace: ['Partner', 'Manager'],
+  firmsettings: ['Partner', 'Manager']
+};
+
+const ACTION_ACCESS = {
+  'quick-create': 'create.task',
+  'new-task': 'create.task',
+  'new-client': 'create.client',
+  'upload-doc': 'upload.doc',
+  'new-request': 'create.task',
+  'new-event': 'create.task',
+  'new-announcement': 'announce',
+  'reset-firm': 'manage.users',
+  'recon-apply-tolerance': 'approve.manager',
+  'workspace-pick': 'view.allClients'
+};
+
+const MODAL_ACCESS = {
+  // A value may be a list: `create.task.own` is a narrower grant that still
+  // permits opening the task modal, so the button and the guard must agree.
+  'task': ['create.task', 'create.task.own'],
+  'client': ['create.client'],
+  'document': ['upload.doc'],
+  'client request': ['create.task', 'create.task.own'],
+  'calendar event': ['create.task', 'create.task.own'],
+  'announcement': ['announce']
+};
+
+const VIEW_LABELS = {
+  clients: 'the client register', reports: 'Manager Reports', auditlog: 'the Audit Log',
+  announcements: 'Announcements', reviews: 'Reviews & Approvals', firmsettings: 'Firm Settings',
+  workspace: 'the workspace switcher', gstrecon: 'GST reconciliation', deadlines: 'the Deadline Center',
+  requests: 'Client Requests'
+};
+
+function currentUser() {
+  return state.data.users.find(u => u.role === state.activeRole) || state.data.users[0];
+}
+
+function can(cap) {
+  return (CAPABILITIES[state.activeRole] || []).includes(cap);
+}
+
+function canSee(view) {
+  return (NAV_ACCESS[view] || ALL_ROLES).includes(state.activeRole);
+}
+
+function denyReason(view) {
+  const label = VIEW_LABELS[view] || 'this area';
+  return `${state.activeRole} role does not have access to ${label}.`;
+}
+
+function canAccessClient(clientId) {
+  if (can('view.allClients')) return true;
+  const me = currentUser().name;
+  return state.data.engagements.some(e =>
+    e.clientId === clientId && (e.manager === me || e.senior === me || (e.associates || []).includes(me)));
+}
+
+function clientDenyReason(clientId) {
+  return `${currentUser().name} is not staffed on ${getClient(clientId).name}.`;
+}
+
+// Segregation of duties: you may not review your own work at any level.
+function canReviewItem(item) {
+  const me = currentUser().name;
+  // Documents record the preparer as `uploadedBy`; tasks use `assignedTo`.
+  if (item.assignedTo === me || item.uploadedBy === me) {
+    return { ok: false, reason: 'You prepared this, so you cannot review it.' };
+  }
+  if (item.reviewer === me) return { ok: false, reason: 'You are the assigned reviewer; another reviewer must sign off.' };
+  if (can('approve.final')) return { ok: true, level: 'final', label: 'Final Sign-off' };
+  if (can('approve.manager')) return { ok: true, level: 'manager', label: 'Approve' };
+  if (can('approve.senior')) return { ok: true, level: 'senior', label: 'Senior Review' };
+  return { ok: false, reason: `${state.activeRole} role cannot approve or sign off work.` };
+}
+
+// Roles below Senior only ever see their own queue.
+function visibleTasks() {
+  const me = currentUser().name;
+  if (can('view.allClients')) return state.data.tasks;
+  return state.data.tasks.filter(t => t.assignedTo === me || t.reviewer === me);
+}
+
 // ---------- FIRM BRANDING ----------
 // Everything visual about the firm is configurable; nothing is hardcoded.
 function hexToRgb(hex) {
@@ -522,6 +688,9 @@ function applyFirmBranding() {
   root.style.setProperty('--emerald-border', shade(brand, 0.62));
   root.style.setProperty('--emerald-glow', rgbaOf(brand, 0.25));
 
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.setAttribute('content', brand);
+
   document.querySelectorAll('[data-firm]').forEach(el => {
     const val = f[el.dataset.firm];
     if (val) el.textContent = val;
@@ -534,14 +703,17 @@ function applyFirmBranding() {
 }
 
 function renderBadge(status) {
-  if (['Approved', 'Active', 'Completed', 'All received'].includes(status)) {
+  if (['Approved', 'Active', 'Completed', 'All received', 'Matched', 'Reconciled'].includes(status)) {
     return `<span class="badge badge-green"><span class="badge-dot-sm"></span>${status}</span>`;
   }
-  if (['In Progress', 'Waiting for Review', 'Ready for Review', 'Attention', '3 of 4 received'].includes(status)) {
+  if (['In Progress', 'Waiting for Review', 'Ready for Review', 'Attention', '3 of 4 received', 'Missing in 2B', 'Variance Accepted'].includes(status)) {
     return `<span class="badge badge-yellow"><span class="badge-dot-sm"></span>${status}</span>`;
   }
-  if (['Overdue', 'Returned', 'Changes Requested', 'High'].includes(status)) {
+  if (['Overdue', 'Returned', 'Changes Requested', 'High', 'Variance'].includes(status)) {
     return `<span class="badge badge-red"><span class="badge-dot-sm"></span>${status}</span>`;
+  }
+  if (['Missing in Register'].includes(status)) {
+    return `<span class="badge badge-blue"><span class="badge-dot-sm"></span>${status}</span>`;
   }
   return `<span class="badge badge-gray"><span class="badge-dot-sm"></span>${status}</span>`;
 }
@@ -559,7 +731,7 @@ function renderHome() {
     <div class="page-header">
       <div class="page-header-title">
         <div class="eyebrow">Monday, September 7, 2026</div>
-        <h1>Good morning, ${state.data.users[0].name.split(' ')[0]}</h1>
+        <h1>Good morning, ${currentUser().name.split(' ')[0]}</h1>
         <p>Your digital office briefing for today.</p>
       </div>
       <div class="page-actions">
@@ -838,7 +1010,10 @@ function renderClientDetail(clientId) {
           ['discussion', 'Discussion'],
           ['reviews', 'Reviews'],
           ['activity', 'Activity']
-        ].map(([tabId, tabLabel]) => `
+        ]
+        // Reviews and the full activity trail are Senior-and-above only.
+        .filter(([tabId]) => tabId !== 'reviews' && tabId !== 'activity' || can('approve.senior') || can('approve.manager') || can('approve.final'))
+        .map(([tabId, tabLabel]) => `
           <button class="sub-tab-btn ${state.activeClientSubTab === tabId ? 'active' : ''}" data-client-tab="${tabId}">
             ${tabLabel}
           </button>
@@ -1031,22 +1206,26 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
 
 // 5. MY WORK (EMPLOYEE PERSONAL WORKSPACE)
 function renderMyWork() {
+  const mine = visibleTasks();
+  const canCreate = can('create.task') || can('create.task.own');
+  const me = currentUser();
+
   return `
     <div class="page-header">
       <div class="page-header-title">
         <div class="eyebrow">Personal Workplace</div>
         <h1>My Work Queue</h1>
-        <p>All tasks, reviews, documents, and deadlines assigned to you.</p>
+        <p>${can('view.allClients') ? 'All tasks and reviews across the practice.' : `Only work assigned to ${me.name} or awaiting your review.`}</p>
       </div>
-      <button class="btn-primary" data-action="new-task">＋ Create Task</button>
+      ${canCreate ? '<button class="btn-primary" data-action="new-task">＋ Create Task</button>' : ''}
     </div>
 
     <div class="card">
       <div class="card-title-row">
-        <div class="card-title">Assigned Tasks</div>
+        <div class="card-title">${can('view.allClients') ? 'All Assigned Tasks' : 'My Assigned Tasks'}</div>
       </div>
       <div class="task-list">
-        ${state.data.tasks.map(t => {
+        ${mine.length === 0 ? '<div class="empty-state">Nothing is assigned to you.</div>' : mine.map(t => {
           const c = getClient(t.clientId);
           return `
             <div class="task-item">
@@ -1375,6 +1554,13 @@ function renderKnowledge() {
 
 // 12. MANAGER REPORTS
 function renderReports() {
+  const showMoney = can('view.firmFinancials');
+  const showCapacity = can('view.firmFinancials') || can('view.reports');
+
+  const redact = (v) => showMoney
+    ? `<span class="mono">${inr(v)}</span>`
+    : `<span class="field-redacted" title="Firm financials require Partner or Manager access">••••••</span>`;
+
   return `
     <div class="page-header">
       <div class="page-header-title">
@@ -1406,6 +1592,48 @@ function renderReports() {
         <div class="stat-meta">Action required</div>
       </div>
     </div>
+
+    ${!showMoney ? `<div class="perm-banner">🔒 Firm financials — engagement fees, billing and team capacity — are visible to Partner and Manager only. You are signed in as ${state.activeRole}.</div>` : ''}
+
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-title-row">
+        <div class="card-title">Engagement Realization</div>
+        <div class="card-title" style="font-size:11px;color:var(--ink-muted);font-weight:500;">Restricted field</div>
+      </div>
+      <div class="task-list">
+        ${state.data.engagements.map(e => `
+          <div class="task-item">
+            <div class="task-body">
+              <div class="task-title-line">${e.title}</div>
+              <div class="task-meta-line">${getClient(e.clientId).name}</div>
+            </div>
+            <div class="recon-amounts">
+              <div><small>Fee</small>${redact(e.feeTotal)}</div>
+              <div><small>Billed</small>${redact(e.feeBilled)}</div>
+              <div><small>Realization</small><strong>${e.realizationPct}%</strong></div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    ${showCapacity ? `
+      <div class="card">
+        <div class="card-title-row"><div class="card-title">Team Capacity</div></div>
+        <div class="task-list">
+          ${state.data.users.map(u => `
+            <div class="task-item">
+              <div class="user-avatar" style="width:30px;height:30px;font-size:11px;background:${u.avatarBg};">${u.initials}</div>
+              <div class="task-body">
+                <div class="task-title-line">${u.name}</div>
+                <div class="task-meta-line">${u.role} · ${u.billableHours} billable hrs this period</div>
+              </div>
+              <div><strong>${u.utilizationPct}%</strong></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
   `;
 }
 
@@ -1668,8 +1896,456 @@ function renderFirmSettings() {
   `;
 }
 
+// 18. GLOBAL SEARCH
+function searchEverything(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+
+  const hits = [];
+  const push = (type, title, meta, view, payload) => hits.push({ type, title, meta, view, payload });
+
+  state.data.clients.forEach(c => {
+    if (`${c.name} ${c.code} ${c.industry} ${c.contact}`.toLowerCase().includes(q)) {
+      push('Client', c.name, `${c.code} · ${c.industry} · ${c.status}`, 'clientdetail', c.id);
+    }
+  });
+
+  state.data.engagements.forEach(e => {
+    const c = getClient(e.clientId);
+    if (`${e.title} ${e.type} ${c.name}`.toLowerCase().includes(q)) {
+      push('Engagement', e.title, `${c.name} · ${e.progress}% complete · due ${e.deadline}`, 'clientdetail', e.clientId);
+    }
+  });
+
+  state.data.tasks.forEach(t => {
+    const c = getClient(t.clientId);
+    if (`${t.title} ${c.name} ${t.assignedTo} ${t.status}`.toLowerCase().includes(q)) {
+      push('Task', t.title, `${c.name} · ${t.assignedTo} · ${t.status} · due ${t.dueDate}`, 'mywork', null);
+    }
+  });
+
+  state.data.documents.forEach(d => {
+    if (`${d.name} ${d.clientName} ${d.status}`.toLowerCase().includes(q)) {
+      push('Document', d.name, `${d.clientName} · ${d.status} · v${d.version}`, 'documents', null);
+    }
+  });
+
+  state.data.requests.forEach(r => {
+    if (`${r.title} ${r.clientName} ${r.status}`.toLowerCase().includes(q)) {
+      push('Request', r.title, `${r.clientName} · ${r.status}`, 'requests', null);
+    }
+  });
+
+  (state.data.knowledgeBase || []).forEach(k => {
+    if (`${k.title} ${k.category}`.toLowerCase().includes(q)) {
+      push('Knowledge', k.title, k.category, 'knowledge', null);
+    }
+  });
+
+  return hits;
+}
+
+function renderSearch() {
+  const query = state.searchQuery || '';
+  const results = searchEverything(query);
+
+  const groups = results.reduce((acc, r) => {
+    (acc[r.type] = acc[r.type] || []).push(r);
+    return acc;
+  }, {});
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Intelligence &amp; Firm</div>
+        <h1>Global Search</h1>
+        <p>Search across clients, engagements, tasks, documents, requests, and the knowledge base.</p>
+      </div>
+    </div>
+
+    <div class="search-panel">
+      <div class="search-panel-icon">🔎</div>
+      <input id="global-search-input" class="search-panel-input" placeholder="Search the whole workspace..." value="${query}" />
+      ${query ? `<button class="btn-ghost" id="clear-search">Clear</button>` : ''}
+    </div>
+
+    ${!query ? `
+      <div class="card">
+        <div class="card-title-row"><div class="card-title">Searchable Scope</div></div>
+        <div class="grid-4">
+          ${[['Clients', state.data.clients.length], ['Engagements', state.data.engagements.length],
+             ['Tasks', state.data.tasks.length], ['Documents', state.data.documents.length]]
+            .map(([label, n]) => `<div class="stat-box"><div class="stat-header">${label}</div><div class="stat-value">${n}</div></div>`).join('')}
+        </div>
+      </div>
+    ` : results.length === 0 ? `
+      <div class="card"><div class="empty-state">No matches for "<strong>${query}</strong>".</div></div>
+    ` : `
+      <div class="card">
+        <div class="card-title-row">
+          <div class="card-title">${results.length} result${results.length === 1 ? '' : 's'} for "${query}"</div>
+        </div>
+        ${Object.keys(groups).map(type => `
+          <div class="search-group">
+            <div class="search-group-label">${type} (${groups[type].length})</div>
+            ${groups[type].map(r => `
+              <div class="search-hit" data-action="search-hit" data-view-target="${r.view}" data-client-target="${r.payload || ''}">
+                <div class="search-hit-title">${r.title}</div>
+                <div class="search-hit-meta">${r.meta}</div>
+              </div>
+            `).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `}
+  `;
+}
+
+// 19. NOTIFICATIONS
+function buildNotifications() {
+  const items = [];
+
+  state.data.tasks.filter(t => t.status === 'Overdue' || t.dueDate < '2026-09-06').forEach(t => {
+    items.push({ tone: 'red', icon: '🔴', title: `Overdue: ${t.title}`, meta: `${getClient(t.clientId).name} · was due ${t.dueDate}`, view: 'mywork' });
+  });
+
+  state.data.documents.filter(d => d.status === 'Waiting for Review').forEach(d => {
+    items.push({ tone: 'yellow', icon: '🔵', title: `Awaiting review: ${d.name}`, meta: `${d.clientName} · ${d.uploadedBy}`, view: 'reviews' });
+  });
+
+  state.data.requests.filter(r => r.status !== 'Resolved').forEach(r => {
+    items.push({ tone: 'green', icon: '📌', title: `Client request: ${r.title}`, meta: `${r.clientName} · ${r.status}`, view: 'requests' });
+  });
+
+  state.data.engagements.filter(e => e.tasksOverdue > 0).forEach(e => {
+    items.push({ tone: 'yellow', icon: '⚠️', title: `${e.title} has ${e.tasksOverdue} overdue task(s)`, meta: `${getClient(e.clientId).name} · due ${e.deadline}`, view: 'clientdetail' });
+  });
+
+  state.data.announcements.forEach(a => {
+    items.push({ tone: 'blue', icon: '📢', title: a.title, meta: a.date || '', view: 'announcements' });
+  });
+
+  return items;
+}
+
+function renderNotifications() {
+  const items = buildNotifications();
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Intelligence &amp; Firm</div>
+        <h1>Notifications</h1>
+        <p>Derived live from overdue work, review queues, client requests, and firm announcements.</p>
+      </div>
+    </div>
+
+    ${items.length === 0 ? `
+      <div class="card"><div class="empty-state">You're all caught up.</div></div>
+    ` : `
+      <div class="card">
+        <div class="task-list">
+          ${items.map(n => `
+            <div class="notif-item" data-action="notif-goto" data-view-target="${n.view}">
+              <div class="notif-icon notif-${n.tone}">${n.icon}</div>
+              <div class="task-body">
+                <div class="task-title-line">${n.title}</div>
+                <div class="task-meta-line">${n.meta}</div>
+              </div>
+              <div class="notif-chevron">›</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `}
+  `;
+}
+
+// 20. WORKSPACE SWITCHER
+function renderWorkspace() {
+  const f = firm();
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Configuration</div>
+        <h1>Switch Workspace</h1>
+        <p>Move between the full firm workspace and an individual client's workspace.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row"><div class="card-title">Firm</div></div>
+      <div class="workspace-option" data-action="workspace-pick" data-workspace="firm">
+        <div class="brand-preview-icon" style="background:var(--emerald);font-size:18px;width:40px;height:40px;">${f.monogram || ''}</div>
+        <div class="task-body">
+          <div class="task-title-line">${f.legalName || ''}</div>
+          <div class="task-meta-line">${state.data.users.length} members · all clients · full visibility</div>
+        </div>
+        <div class="notif-chevron">›</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row"><div class="card-title">Client Workspaces</div></div>
+      ${state.data.clients.map(c => `
+        <div class="workspace-option" data-action="workspace-pick" data-workspace="${c.id}">
+          <div class="brand-preview-icon" style="background:${c.color};font-size:18px;width:40px;height:40px;">${c.code}</div>
+          <div class="task-body">
+            <div class="task-title-line">${c.name}</div>
+            <div class="task-meta-line">${c.industry} · ${c.manager} · ${c.docsCount} documents</div>
+          </div>
+          <div class="notif-chevron">›</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// 21. GST 2A/2B RECONCILIATION
+// Matching key is GSTIN + invoice number. GSTIN is deliberately part of the key:
+// the same invoice number under a different supplier GSTIN is a different document
+// and must never be auto-matched.
+function reconKey(row) {
+  return String(row.gstin || '').trim().toUpperCase() + '|' + String(row.invoiceNo || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function inr(n) {
+  const v = Number(n) || 0;
+  return '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+
+function reconcileGst(gr) {
+  const abs = Number(gr.toleranceAbs) || 0;
+  const pct = Number(gr.tolerancePct) || 0;
+  const results = [];
+
+  const bByKey = new Map();
+  gr.portal2b.forEach(b => {
+    const k = reconKey(b);
+    if (!bByKey.has(k)) bByKey.set(k, b);
+  });
+
+  const matchedB = new Set();
+
+  gr.purchaseRegister.forEach(pr => {
+    const k = reconKey(pr);
+    const b = bByKey.get(k);
+    if (!b) {
+      results.push({
+        key: k, status: 'Missing in 2B', pr, portal: null, variance: pr.total,
+        allowed: abs + (pr.total * pct) / 100
+      });
+      return;
+    }
+    matchedB.add(k);
+    const variance = Math.abs(Number(pr.total) - Number(b.total));
+    // Tolerance is the more forgiving of the absolute cap and the percentage cap.
+    const allowed = Math.max(abs, (Number(pr.total) * pct) / 100);
+    results.push({
+      key: k,
+      status: variance <= allowed ? 'Matched' : 'Variance',
+      pr, portal: b, variance, allowed
+    });
+  });
+
+  gr.portal2b.forEach(b => {
+    if (matchedB.has(reconKey(b))) return;
+    results.push({
+      key: reconKey(b), status: 'Missing in Register', pr: null, portal: b,
+      variance: b.total, allowed: Math.max(abs, (b.total * pct) / 100)
+    });
+  });
+
+  results.forEach(r => {
+    const res = (gr.resolutions || {})[r.key];
+    r.resolution = res ? res.status : 'Open';
+  });
+
+  return results;
+}
+
+function renderGstRecon() {
+  const gr = state.data.gstRecons[0];
+  const rows = reconcileGst(gr);
+  const filter = state.reconFilter || 'All';
+  const expanded = state.reconExpanded || null;
+
+  const counts = rows.reduce((a, r) => { a[r.status] = (a[r.status] || 0) + 1; return a; }, {});
+  const openCount = rows.filter(r => r.resolution === 'Open').length;
+  const exposure = rows
+    .filter(r => r.status !== 'Matched' && r.resolution === 'Open')
+    .reduce((s, r) => s + (r.variance || 0), 0);
+
+  const tabs = [
+    ['All', rows.length], ['Matched', counts.Matched || 0],
+    ['Variance', counts.Variance || 0], ['Missing in 2B', counts['Missing in 2B'] || 0],
+    ['Missing in Register', counts['Missing in Register'] || 0]
+  ];
+
+  const visible = filter === 'All' ? rows : rows.filter(r => r.status === filter);
+  const money = n => `<span class="mono">${inr(n)}</span>`;
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">GST Compliance</div>
+        <h1>2A / 2B Reconciliation</h1>
+        <p>${gr.clientName} · GSTIN ${gr.gstin} · ${gr.period}</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Tolerance Settings</div>
+        <div class="card-title" style="font-size:11px;color:var(--ink-muted);font-weight:500;">
+          Matching key: GSTIN + Invoice No. · variance allowed if within either cap
+        </div>
+      </div>
+      <div class="tolerance-row">
+        <div class="form-group" style="margin:0;">
+          <label>Absolute Cap (₹)</label>
+          <input type="number" id="tolerance-abs" value="${gr.toleranceAbs}" min="0" />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Percentage Cap (%)</label>
+          <input type="number" id="tolerance-pct" value="${gr.tolerancePct}" min="0" step="0.1" />
+        </div>
+        <button class="btn-primary" data-action="recon-apply-tolerance">Apply</button>
+      </div>
+    </div>
+
+    <div class="grid-4" style="margin-bottom:24px;">
+      <div class="stat-box">
+        <div class="stat-header">Total Lines</div>
+        <div class="stat-value">${rows.length}</div>
+        <div class="stat-meta">${gr.purchaseRegister.length} in register · ${gr.portal2b.length} in 2B</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-header">Matched</div>
+        <div class="stat-value" style="color:var(--green);">${counts.Matched || 0}</div>
+        <div class="stat-meta">within tolerance</div>
+      </div>
+      <div class="stat-box alert-red">
+        <div class="stat-header">Exceptions</div>
+        <div class="stat-value" style="color:var(--red);">${rows.length - (counts.Matched || 0)}</div>
+        <div class="stat-meta">${openCount} still open</div>
+      </div>
+      <div class="stat-box alert-yellow">
+        <div class="stat-header">Value at Risk</div>
+        <div class="stat-value" style="font-size:22px;">${inr(exposure)}</div>
+        <div class="stat-meta">open exception value</div>
+      </div>
+    </div>
+
+    <div class="recon-tabs">
+      ${tabs.map(([label, n]) => `
+        <button class="sub-tab-btn ${filter === label ? 'active' : ''}" data-action="recon-filter" data-filter="${label}">
+          ${label} (${n})
+        </button>
+      `).join('')}
+    </div>
+
+    <div class="card">
+      <div class="task-list">
+        ${visible.length === 0 ? '<div class="empty-state">No lines in this category.</div>' : visible.map(r => `
+          <div class="recon-row recon-${r.status.replace(/\s+/g, '-').toLowerCase()}">
+            <div class="recon-row-main" data-action="recon-expand" data-recon-key="${r.key}">
+              <div class="recon-status-dot"></div>
+              <div class="task-body">
+                <div class="task-title-line">
+                  ${r.pr ? r.pr.invoiceNo : r.portal.invoiceNo}
+                  ${r.resolution !== 'Open' ? `<span class="badge badge-gray">${r.resolution}</span>` : ''}
+                </div>
+                <div class="task-meta-line">
+                  ${(r.pr || r.portal).party} · ${(r.pr || r.portal).invoiceDate} ·
+                  ${(r.pr || r.portal).gstin}
+                </div>
+              </div>
+              <div class="recon-amounts">
+                <div><small>Register</small>${r.pr ? money(r.pr.total) : '<span class="muted">—</span>'}</div>
+                <div><small>2B</small>${r.portal ? money(r.portal.total) : '<span class="muted">—</span>'}</div>
+                <div><small>Variance</small><strong style="color:${r.status === 'Matched' ? 'var(--green)' : 'var(--red)'}">${money(r.variance)}</strong></div>
+              </div>
+              <div>${renderBadge(r.status)}</div>
+            </div>
+
+            ${expanded === r.key ? `
+              <div class="recon-detail">
+                <div class="recon-detail-grid">
+                  <div class="recon-detail-col">
+                    <h5>Purchase Register</h5>
+                    ${r.pr ? `
+                      <div><span>Invoice</span><strong>${r.pr.invoiceNo}</strong></div>
+                      <div><span>Date</span><strong>${r.pr.invoiceDate}</strong></div>
+                      <div><span>Supplier GSTIN</span><strong>${r.pr.gstin}</strong></div>
+                      <div><span>Taxable</span><strong>${money(r.pr.taxable)}</strong></div>
+                      <div><span>IGST</span><strong>${money(r.pr.igst)}</strong></div>
+                      <div><span>Total</span><strong>${money(r.pr.total)}</strong></div>
+                    ` : '<div class="muted">Not present in the purchase register.</div>'}
+                  </div>
+                  <div class="recon-detail-col">
+                    <h5>GSTR-2B (Portal)</h5>
+                    ${r.portal ? `
+                      <div><span>Invoice</span><strong>${r.portal.invoiceNo}</strong></div>
+                      <div><span>Date</span><strong>${r.portal.invoiceDate}</strong></div>
+                      <div><span>Supplier GSTIN</span><strong>${r.portal.gstin}</strong></div>
+                      <div><span>Taxable</span><strong>${money(r.portal.taxable)}</strong></div>
+                      <div><span>IGST</span><strong>${money(r.portal.igst)}</strong></div>
+                      <div><span>Total</span><strong>${money(r.portal.total)}</strong></div>
+                    ` : '<div class="muted">Not reflected on the portal yet — supplier has likely not filed.</div>'}
+                  </div>
+                </div>
+                <div class="recon-detail-note">
+                  Variance ${money(r.variance)} against an allowed tolerance of ${money(r.allowed)}.
+                </div>
+                <div class="modal-actions">
+                  ${r.resolution === 'Open' ? `
+                    <button class="btn-secondary" data-action="recon-resolve" data-recon-key="${r.key}">Mark Reconciled</button>
+                    <button class="btn-secondary" data-action="recon-accept" data-recon-key="${r.key}">Accept Variance</button>
+                  ` : `
+                    <button class="btn-ghost" data-action="recon-reopen" data-recon-key="${r.key}">Reopen</button>
+                  `}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// Locked-but-visible nav: a restricted item stays in place so the control is
+// evident, and explains itself on click.
+function applyNavPermissions() {
+  document.querySelectorAll('.nav-item[data-view]').forEach(btn => {
+    const allowed = canSee(btn.dataset.view);
+    btn.classList.toggle('nav-locked', !allowed);
+    btn.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+    const existing = btn.querySelector('.nav-lock-icon');
+    if (!allowed && !existing) {
+      const icon = document.createElement('span');
+      icon.className = 'nav-lock-icon';
+      icon.textContent = '🔒';
+      btn.appendChild(icon);
+    } else if (allowed && existing) {
+      existing.remove();
+    }
+  });
+}
+
 // MAIN APP NAVIGATION RENDER ROUTER
 function navigateTo(viewName) {
+  if (viewName !== 'home' && !canSee(viewName)) {
+    toast(`Access denied · ${denyReason(viewName)}`);
+    if (state.currentView && state.currentView !== viewName) return;
+  }
+  if (viewName === 'clientdetail' && !canAccessClient(state.activeClientId)) {
+    toast(`Access denied · ${clientDenyReason(state.activeClientId)}`);
+    state.currentView = 'home';
+    viewName = 'home';
+  }
   state.currentView = viewName;
   const appView = document.getElementById('app-view');
   const pageTitleBc = document.getElementById('bc-page');
@@ -1696,7 +2372,11 @@ function navigateTo(viewName) {
     assistant: 'AI Assistant',
     announcements: 'Announcements',
     auditlog: 'Audit Log',
-    firmsettings: 'Firm Settings'
+    firmsettings: 'Firm Settings',
+    search: 'Search',
+    notifications: 'Notifications',
+    workspace: 'Switch Workspace',
+    gstrecon: 'GST 2A/2B Recon'
   };
   pageTitleBc.textContent = labelMap[viewName] || 'Overview';
 
@@ -1723,6 +2403,10 @@ function navigateTo(viewName) {
     case 'announcements': appView.innerHTML = renderAnnouncements(); break;
     case 'auditlog': appView.innerHTML = renderAuditLog(); break;
     case 'firmsettings': appView.innerHTML = renderFirmSettings(); break;
+    case 'search': appView.innerHTML = renderSearch(); break;
+    case 'notifications': appView.innerHTML = renderNotifications(); break;
+    case 'workspace': appView.innerHTML = renderWorkspace(); break;
+    case 'gstrecon': appView.innerHTML = renderGstRecon(); break;
     default: appView.innerHTML = renderHome(); break;
   }
 }
@@ -1768,6 +2452,10 @@ function openReviewDrawer(docId) {
       <div class="drawer-footer">
         <button class="btn-danger" id="btn-return-changes">Return for Changes</button>
         <button class="btn-primary" id="btn-approve-doc">Approve Document ✅</button>
+        ${(function () {
+          const verdict = canReviewItem(doc);
+          return verdict.ok ? '' : `<div class="perm-locked-reason">🔒 Review unavailable · ${verdict.reason}</div>`;
+        })()}
       </div>
     </div>
   `;
@@ -1778,18 +2466,28 @@ function openReviewDrawer(docId) {
   document.getElementById('close-drawer').onclick = () => root.classList.remove('open');
   
   document.getElementById('btn-approve-doc').onclick = () => {
+    const verdict = canReviewItem(doc);
+    if (!verdict.ok) {
+      toast(`Cannot approve · ${verdict.reason}`);
+      return;
+    }
     doc.status = 'Approved';
-    state.addAuditLog(state.data.users[0].name, 'Approved Document', doc.name);
+    state.addAuditLog(currentUser().name, 'Approved Document', doc.name);
     root.classList.remove('open');
     toast(`Approved ${doc.name}`);
     navigateTo(state.currentView);
   };
 
   document.getElementById('btn-return-changes').onclick = () => {
+    const verdict = canReviewItem(doc);
+    if (!verdict.ok) {
+      toast(`Cannot return · ${verdict.reason}`);
+      return;
+    }
     const note = document.getElementById('drawer-note-input').value || 'Changes requested';
     doc.status = 'Returned';
-    doc.comments.push({ author: state.data.users[0].name, text: note, time: 'Just now' });
-    state.addAuditLog(state.data.users[0].name, 'Returned Document for Changes', doc.name);
+    doc.comments.push({ author: currentUser().name, text: note, time: 'Just now' });
+    state.addAuditLog(currentUser().name, 'Returned Document for Changes', doc.name);
     root.classList.remove('open');
     toast(`Returned ${doc.name} for changes`);
     navigateTo(state.currentView);
@@ -1798,6 +2496,14 @@ function openReviewDrawer(docId) {
 
 // CREATOR MODAL CONTROLLER
 function openCreateModal(type) {
+  // Defence in depth: the action dispatch already gates these, but the modal is
+  // a privileged write path and must refuse an unauthorized caller directly.
+  const needed = MODAL_ACCESS[type];
+  if (needed && !needed.some(cap => can(cap))) {
+    toast(`Access denied · ${state.activeRole} role cannot create a ${type}.`);
+    return;
+  }
+
   const root = document.getElementById('modal-root');
 
   root.innerHTML = `
@@ -1860,7 +2566,7 @@ function openCreateModal(type) {
       stage: 'Prep'
     });
 
-    state.addAuditLog(state.data.users[0].name, 'Created Task', title);
+    state.addAuditLog(currentUser().name, 'Created Task', title);
     root.classList.remove('open');
     toast(`Created task "${title}"`);
     navigateTo(state.currentView);
@@ -1873,12 +2579,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const v = e.currentTarget.dataset.view;
+      if (v !== 'home' && !canSee(v)) {
+        toast(`Access denied · ${denyReason(v)}`);
+        return;
+      }
       navigateTo(v);
     });
   });
 
   // Global Dynamic Click Handler
   document.body.addEventListener('click', (e) => {
+    // Workspace Switcher (the firm card in the sidebar)
+    const wsCard = e.target.closest('#workspace-card');
+    if (wsCard) {
+      navigateTo('workspace');
+      return;
+    }
+
     // Open Client Mini-Office
     const clientCard = e.target.closest('[data-open-client]');
     if (clientCard) {
@@ -1903,7 +2620,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const t = state.data.tasks.find(x => x.id === taskId);
       if (t) {
         t.status = t.status === 'Completed' ? 'In Progress' : 'Completed';
-        state.addAuditLog(state.data.users[0].name, 'Updated Task Status', t.title);
+        state.addAuditLog(currentUser().name, 'Updated Task Status', t.title);
         toast(`Updated "${t.title}" status to ${t.status}`);
         navigateTo(state.currentView);
       }
@@ -1929,7 +2646,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const actBtn = e.target.closest('[data-action]');
     if (actBtn) {
       const act = actBtn.dataset.action;
-      if (act === 'quick-create' || act === 'new-task') openCreateModal('task');
+      const needed = ACTION_ACCESS[act];
+      if (needed && !can(needed)) {
+        toast(`Access denied · ${state.activeRole} role cannot ${act.replace(/^(new|quick)-/, '').replace(/-/g, ' ')}.`);
+        return;
+      }
+      if (act === 'open-search') {
+        state.searchQuery = '';
+        navigateTo('search');
+        setTimeout(() => {
+          const inp = document.getElementById('global-search-input');
+          if (inp) inp.focus();
+        }, 0);
+      }
+      else if (act === 'search-hit' || act === 'notif-goto') {
+        const target = actBtn.dataset.viewTarget;
+        const clientId = actBtn.dataset.clientTarget;
+        if (clientId) {
+          state.activeClientId = clientId;
+          state.activeClientSubTab = 'overview';
+        }
+        navigateTo(target || 'home');
+      }
+      else if (act === 'recon-filter') {
+        state.reconFilter = actBtn.dataset.filter;
+        navigateTo('gstrecon');
+      }
+      else if (act === 'recon-expand') {
+        state.reconExpanded = state.reconExpanded === actBtn.dataset.reconKey ? null : actBtn.dataset.reconKey;
+        navigateTo('gstrecon');
+      }
+      else if (act === 'recon-resolve' || act === 'recon-accept' || act === 'recon-reopen') {
+        const gr = state.data.gstRecons[0];
+        const key = actBtn.dataset.reconKey;
+        const label = act === 'recon-resolve' ? 'Reconciled' : act === 'recon-accept' ? 'Variance Accepted' : 'Open';
+        gr.resolutions = gr.resolutions || {};
+        if (label === 'Open') delete gr.resolutions[key];
+        else gr.resolutions[key] = { status: label, by: currentUser().name, time: new Date().toISOString().replace('T', ' ').substring(0, 16) };
+        state.save();
+        state.addAuditLog(currentUser().name, act === 'recon-accept' ? 'Accepted GST Variance' : act === 'recon-resolve' ? 'Marked GST Line Reconciled' : 'Reopened GST Line', key);
+        toast(`${key.split('|')[1]} → ${label}`);
+        navigateTo('gstrecon');
+      }
+      else if (act === 'workspace-pick') {
+        const ws = actBtn.dataset.workspace;
+        if (ws === 'firm') {
+          state.appMode = 'firm';
+          navigateTo('home');
+          toast('Switched to Firm Workspace');
+        } else {
+          state.appMode = 'portal';
+          state.activeClientId = ws;
+          navigateTo('clientdetail');
+          toast(`Switched to ${getClient(ws).name}`);
+        }
+      }
+      else if (act === 'quick-create' || act === 'new-task') openCreateModal('task');
       else if (act === 'new-client') openCreateModal('client');
       else if (act === 'upload-doc') openCreateModal('document');
       else if (act === 'new-request') openCreateModal('client request');
@@ -1959,9 +2731,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (roleSelect) {
     roleSelect.addEventListener('change', (e) => {
       state.activeRole = e.target.value;
-      const userDisplay = document.getElementById('user-role-display');
-      if (userDisplay) userDisplay.textContent = state.activeRole;
-      toast(`Switched role to ${state.activeRole}`);
+      const me = currentUser();
+      const roleDisplay = document.getElementById('user-role-display');
+      const nameDisplay = document.getElementById('user-name-display');
+      const avatar = document.getElementById('user-avatar-initials');
+      if (roleDisplay) roleDisplay.textContent = me.role;
+      if (nameDisplay) nameDisplay.textContent = me.name;
+      if (avatar) {
+        avatar.textContent = me.initials;
+        avatar.style.background = me.avatarBg;
+      }
+      applyNavPermissions();
+      navigateTo(canSee(state.currentView) ? state.currentView : 'home');
+      toast(`Now acting as ${me.name} (${me.role})`);
     });
   }
 
@@ -1985,7 +2767,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Firm Settings — live brand preview while editing, and persistence on save.
+  // Global Search — live filtering, and clearing the query.
+  document.body.addEventListener('input', (e) => {
+    if (e.target.id !== 'global-search-input') return;
+    state.searchQuery = e.target.value;
+    const caret = e.target.selectionStart;
+    navigateTo('search');
+    const restored = document.getElementById('global-search-input');
+    if (restored) {
+      restored.focus();
+      try { restored.setSelectionRange(caret, caret); } catch (err) { /* noop */ }
+    }
+  });
+
+  document.body.addEventListener('click', (e) => {
+    if (e.target.id === 'clear-search') {
+      state.searchQuery = '';
+      navigateTo('search');
+    }
+  });
+
+// Firm Settings — live brand preview while editing, and persistence on save.
   document.body.addEventListener('input', (e) => {
     const colorInput = document.getElementById('firm-color-input');
     if (!colorInput) return;
@@ -2037,9 +2839,21 @@ document.addEventListener('DOMContentLoaded', () => {
     state.data.firm = next;
     state.save();
     applyFirmBranding();
-    state.addAuditLog(state.data.users[0].name, 'Updated Firm Settings', next.legalName || next.name);
+    state.addAuditLog(currentUser().name, 'Updated Firm Settings', next.legalName || next.name);
     toast('Firm settings saved');
     navigateTo('firmsettings');
+  });
+
+  // GST Recon — tolerance inputs commit via Enter or the Apply button.
+  document.body.addEventListener('click', (e) => {
+    const applyBtn = e.target.closest('[data-action="recon-apply-tolerance"]');
+    if (!applyBtn) return;
+    const gr = state.data.gstRecons[0];
+    gr.toleranceAbs = Math.max(0, Number(document.getElementById('tolerance-abs').value) || 0);
+    gr.tolerancePct = Math.max(0, Number(document.getElementById('tolerance-pct').value) || 0);
+    state.save();
+    toast(`Tolerance updated: ±${inr(gr.toleranceAbs)} or ${gr.tolerancePct}%`);
+    navigateTo('gstrecon');
   });
 
   // Chat Composer Submission
@@ -2052,8 +2866,8 @@ document.addEventListener('DOMContentLoaded', () => {
       state.data.messages.push({
         id: 'm_' + Date.now(),
         channel: state.activeChatChannel,
-        author: state.data.users[0].name,
-        authorInitials: 'RS',
+        author: currentUser().name,
+        authorInitials: currentUser().initials,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         text: input.value.trim()
       });
@@ -2089,5 +2903,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize: apply configured firm branding, then render the default view.
   applyFirmBranding();
+  applyNavPermissions();
   navigateTo('home');
 });
