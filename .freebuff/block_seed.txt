@@ -1,0 +1,37 @@
+  bankAccounts: [
+    { id: 'ba1', name: 'HDFC Current A/C', balance: 2450000, asOf: '2026-10-01' }
+  ],
+  firmTaxProfile: {
+    prevYearAssessedTax: 1850000,
+    presumptive: false
+  },
+  salesRegisters: [
+    { id: 'sr1', clientId: 'c1', month: '2026-08', taxable: 4200000, outputTax: 756000 },
+    { id: 'sr2', clientId: 'c1', month: '2026-09', taxable: 3980000, outputTax: 716400 },
+    { id: 'sr3', clientId: 'c2', month: '2026-08', taxable: 1850000, outputTax: 333000 },
+    { id: 'sr4', clientId: 'c2', month: '2026-09', taxable: 2120000, outputTax: 381600 },
+    { id: 'sr5', clientId: 'c3', month: '2026-08', taxable: 980000, outputTax: 176400 },
+    { id: 'sr6', clientId: 'c3', month: '2026-09', taxable: 1240000, outputTax: 223200 },
+    { id: 'sr7', clientId: 'c1', month: '2026-10', taxable: 4650000, outputTax: 837000 }
+  ],
+  deducteeEntries: [
+    { id: 'dd1', month: '2026-08', section: '194J', payee: 'Kumar Traders', tdsin: '29ABCK1234M1Z2', base: 100000, rate: 10, tax: 10000 },
+    { id: 'dd2', month: '2026-08', section: '194J', payee: 'Axis Industrial', tdsin: '29AADA8765K1Z8', base: 250000, rate: 2, tax: 5000 },
+    { id: 'dd3', month: '2026-08', section: '194I', payee: 'Sterling Properties', tdsin: '29AASTS2211M1Z9', base: 850000, rate: 10, tax: 85000 },
+    { id: 'dd4', month: '2026-09', section: '194J', payee: 'Modern Fabrics', tdsin: '29AAMF9921K1Z4', base: 400000, rate: 2, tax: 8000 },
+    { id: 'dd5', month: '2026-09', section: '194J', payee: 'Precision Tools', tdsin: '29AAPT5521K1Z7', base: 900000, rate: 2, tax: 18000 },
+    { id: 'dd6', month: '2026-09', section: '194C', payee: 'Nova Chemicals', tdsin: '29AANC7788K1Z1', base: 600000, rate: 1, tax: 6000 },
+    { id: 'dd7', month: '2026-10', section: '194J', payee: 'Trinity Hardware', tdsin: '29AATH3311K1Z6', base: 750000, rate: 2, tax: 15000 }
+  ],
+  payrollRuns: [
+    { id: 'pr1', month: '2026-08', gross: 620000, pfEmployee: 55800, pfEmployer: 22320, esi: 4600, net: 536700 },
+    { id: 'pr2', month: '2026-09', gross: 645000, pfEmployee: 58050, pfEmployer: 23220, esi: 4790, net: 558140 },
+    { id: 'pr3', month: '2026-10', gross: 658000, pfEmployee: 59220, pfEmployer: 23680, esi: 4880, net: 569220 }
+  ],
+  payments: [
+    { id: 'pm1', kind: 'Operational', title: 'Office rent — Sterling Chambers', category: 'Rent', dueDate: '2026-10-05', amount: 85000, preparedBy: 'Priya Nair', status: 'Open', approvals: [] },
+    { id: 'pm2', kind: 'Operational', title: 'Statutory audit fee — ABC Manufacturing', category: 'Professional', dueDate: '2026-10-12', amount: 425000, preparedBy: 'Rahul Mehta', status: 'Open', approvals: [] },
+    { id: 'pm3', kind: 'Operational', title: 'Cloud hosting and software licences', category: 'Software', dueDate: '2026-10-18', amount: 47200, preparedBy: 'Arjun Rao', status: 'Open', approvals: [] },
+    { id: 'pm4', kind: 'Operational', title: 'Loan EMI — working capital term loan', category: 'Loan', dueDate: '2026-10-07', amount: 156000, preparedBy: 'Rithvik Shah', status: 'Paid', approvals: [] },
+    { id: 'pm5', kind: 'Operational', title: 'Insurance premium — professional indemnity', category: 'Insurance', dueDate: '2026-11-02', amount: 96500, preparedBy: 'Priya Nair', status: 'Open', approvals: [] }
+  ],
