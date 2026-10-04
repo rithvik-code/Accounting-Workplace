@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1b4d3e" />
+  <title>Accounting Workplace — Operating System for Practice</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar" aria-label="Main Navigation">
+      <div class="brand">
+        <div class="brand-icon">A</div>
+        <div class="brand-text">AccWorkplace</div>
+        <div class="brand-tag">OS</div>
+      </div>
+
+      <div class="workspace-card" id="workspace-card" title="Click to switch firm workspace">
+        <div class="workspace-avatar">R</div>
+        <div class="workspace-details">
+          <div class="workspace-name">Rao &amp; Co. CPAs</div>
+          <div class="workspace-subtitle">7 Members · Firm Office</div>
+        </div>
+        <span style="font-size:10px;color:var(--ink-subtle)">▼</span>
+      </div>
+
+      <nav class="nav-group">
+        <div class="nav-label">Workspace</div>
+        <button class="nav-item active" data-view="home">
+          <span class="nav-icon">🏠</span> <span>Home</span>
+        </button>
+        <button class="nav-item" data-view="communication">
+          <span class="nav-icon">💬</span> <span>Communication</span>
+          <span class="nav-badge">3</span>
+        </button>
+        <button class="nav-item" data-view="clients">
+          <span class="nav-icon">👥</span> <span>Clients</span>
+          <span class="nav-badge">6</span>
+        </button>
+        <button class="nav-item" data-view="mywork">
+          <span class="nav-icon">📋</span> <span>My Work</span>
+          <span class="nav-badge">8</span>
+        </button>
+        <button class="nav-item" data-view="deadlines">
+          <span class="nav-icon">⏱️</span> <span>Deadline Center</span>
+          <span class="nav-badge alert">2</span>
+        </button>
+        <button class="nav-item" data-view="calendar">
+          <span class="nav-icon">📅</span> <span>Calendar</span>
+        </button>
+        <button class="nav-item" data-view="documents">
+          <span class="nav-icon">📁</span> <span>Documents</span>
+        </button>
+        <button class="nav-item" data-view="reviews">
+          <span class="nav-icon">✅</span> <span>Reviews &amp; Approvals</span>
+          <span class="nav-badge alert">2</span>
+        </button>
+        <button class="nav-item" data-view="requests">
+          <span class="nav-icon">📌</span> <span>Client Requests</span>
+          <span class="nav-badge">1</span>
+        </button>
+      </nav>
+
+      <nav class="nav-group">
+        <div class="nav-label">Intelligence &amp; Firm</div>
+        <button class="nav-item" data-view="knowledge">
+          <span class="nav-icon">📚</span> <span>Knowledge Base</span>
+        </button>
+        <button class="nav-item" data-view="reports">
+          <span class="nav-icon">📊</span> <span>Manager Reports</span>
+        </button>
+        <button class="nav-item" data-view="assistant">
+          <span class="nav-icon">🤖</span> <span>AI Assistant</span>
+        </button>
+        <button class="nav-item" data-view="announcements">
+          <span class="nav-icon">📢</span> <span>Announcements</span>
+        </button>
+        <button class="nav-item" data-view="auditlog">
+          <span class="nav-icon">🛡️</span> <span>Audit Log</span>
+        </button>
+        <button class="nav-item" data-view="search">
+          <span class="nav-icon">🔎</span> <span>Search</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-box">
+          <div class="user-avatar" id="user-avatar-initials">RS</div>
+          <div class="user-info">
+            <div class="user-name" id="user-name-display">Rithvik Shah</div>
+            <div class="user-role-title" id="user-role-display">Partner / Owner</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Header & View -->
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="breadcrumb">
+            <span id="bc-firm">Rao &amp; Co.</span>
+            <span class="sep">/</span>
+            <span class="current" id="bc-page">Home</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Role Selector -->
+          <div class="role-picker" title="Switch active permission role to simulate experience">
+            <span>Role:</span>
+            <select id="role-select">
+              <option value="Partner">Partner / Owner</option>
+              <option value="Manager">Manager (Rahul)</option>
+              <option value="Senior">Senior (Priya)</option>
+              <option value="Accountant">Accountant (Arjun)</option>
+              <option value="Trainee">Trainee</option>
+            </select>
+          </div>
+
+          <!-- Mode Toggle Switch (Firm vs Client Portal) -->
+          <div class="portal-toggle">
+            <button class="portal-btn active" id="btn-mode-firm" data-mode="firm">Firm Workspace</button>
+            <button class="portal-btn" id="btn-mode-portal" data-mode="portal">Client Portal</button>
+          </div>
+
+          <button class="quick-search-btn" data-action="open-search">
+            <span>🔎</span> <span>Search workspace...</span>
+          </button>
+
+          <button class="btn-primary" data-action="quick-create">
+            <span>＋</span> <span>New Work</span>
+          </button>
+
+          <button class="icon-btn" data-view="notifications" title="Notifications">
+            <span>🔔</span>
+            <span class="badge-dot"></span>
+          </button>
+        </div>
+      </header>
+
+      <section id="app-view" class="page-container"></section>
+    </main>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="toast-msg"></div>
+
+  <!-- Main Modal Root -->
+  <div id="modal-root" class="modal-overlay"></div>
+
+  <!-- Document Side-by-Side Review Drawer Root -->
+  <div id="review-drawer-root" class="review-drawer-backdrop"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
