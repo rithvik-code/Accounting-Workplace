@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Sign-in gate: rendered only while nobody is signed in -->
+  <div id="login-gate" hidden></div>
   <div class="app-shell">
     <!-- Left Navigation Sidebar -->
     <aside class="sidebar" aria-label="Main Navigation">
@@ -94,6 +96,21 @@
         </button>
       </nav>
 
+      <nav class="nav-group">
+        <div class="nav-label">Break Room</div>
+        <button class="nav-item" data-view="games">
+          <span class="nav-icon">&#127922;</span> <span>Games</span>
+        </button>
+        <button class="nav-item" data-view="game-sudoku">
+          <span class="nav-icon">&#128290;</span> <span>Sudoku</span>
+        </button>
+        <button class="nav-item" data-view="game-drill">
+          <span class="nav-icon">&#9889;</span> <span>Speed Drill</span>
+        </button>
+        <button class="nav-item" data-view="game-gst">
+          <span class="nav-icon">&#128299;</span> <span>GST Challenge</span>
+        </button>
+      </nav>
       <div class="sidebar-footer">
         <div class="user-profile-box">
           <div class="user-avatar" id="user-avatar-initials">RS</div>
@@ -117,9 +134,18 @@
         </div>
 
         <div class="topbar-right">
-          <!-- Role Selector -->
-          <div class="role-picker" title="Switch active permission role to simulate experience">
-            <span>Role:</span>
+          <!-- Signed-in member, established at the sign-in gate -->
+          <div class="session-chip" id="session-chip">
+            <div class="session-avatar" id="session-avatar">RS</div>
+            <div class="session-text">
+              <div class="session-name" id="session-name">Rithvik Shah</div>
+              <div class="session-role" id="session-role">Partner</div>
+            </div>
+            <button class="session-signout" data-action="sign-out" title="Sign out of this workspace">&#9211;</button>
+          </div>
+          <!-- Simulation only: this does not change who is signed in -->
+          <div class="role-picker" id="role-picker" title="Simulate another member's permissions">
+            <span>Simulate:</span>
             <select id="role-select">
               <option value="Partner">Partner / Owner</option>
               <option value="Manager">Manager (Rahul)</option>

@@ -513,6 +513,14 @@ class AppState {
     this.workspaceMenuOpen = false;
     this.reconFilter = 'All';
     this.reconExpanded = null;
+    this.loginPendingUser = null;
+    this.loginError = '';
+    // Set only while the role picker is simulating another member.
+    this.simulatedRole = false;
+    // Game state is in-memory only and is never saved with practice data.
+    this.sudoku = null;
+    this.drill = null;
+    this.gstGame = null;
   }
 
   loadFromStorage() {
@@ -566,6 +574,218 @@ function getInitials(name) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 }
 
+// ---------- SESSION & SIGN-IN ----------
+// The session decides WHO you are. Every permission check downstream reads
+// the session's role, so it is no longer a free-floating localStorage toggle
+// you can flip in devtools and keep.
+//
+// This is still a static page with no server, so the PIN check is a UI gate,
+// not a security boundary. What it does buy is real: the acting user is
+// chosen at entry, recorded in the audit log, and consistent everywhere.
+const SESSION_KEY = 'acc_workplace_os_session';
+function readSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+  } catch (e) {
+    return null;
+  }
+}
+function writeSession(s) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  } catch (e) { /* private mode — the session just won't persist */ }
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) { /* noop */ }
+}
+function currentSession() {
+  const s = readSession();
+  if (!s || !s.userId) return null;
+  // The user must still exist in the firm; a stale session never grants access.
+  return state.data.users.find(u => u.id === s.userId) || null;
+}
+function isSignedIn() {
+  return !!currentSession();
+}
+// Every seeded member has a 4-digit PIN derived from their id, so it is
+// stable and explainable in the UI rather than hidden magic.
+function pinForUser(user) {
+  const n = parseInt(String(user.id).replace(/\D/g, ''), 10) || 1;
+  return String(1000 + ((n * 1117 + 4242) % 9000));
+}
+function signIn(userId, pin) {
+  const user = state.data.users.find(u => u.id === userId);
+  if (!user) return { ok: false, reason: 'That account is no longer on the firm roster.' };
+  if (String(pin || '').trim() !== pinForUser(user)) {
+    return { ok: false, reason: `Incorrect PIN for ${user.name}.` };
+  }
+  const session = {
+    userId: user.id,
+    name: user.name,
+    role: user.role,
+    signedInAt: new Date().toISOString(),
+    device: navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'
+  };
+  writeSession(session);
+  // The permission model reads activeRole; the session now owns it.
+  state.activeRole = user.role;
+  state.simulatedRole = false;
+  state.appMode = 'firm';
+  state.addAuditLog(user.name, 'Signed in', `${user.role} session started`);
+  return { ok: true, user: user, session: session };
+}
+function signOut(reason) {
+  const s = currentSession();
+  if (s) state.addAuditLog(s.name, 'Signed out', reason || 'Session ended');
+  clearSession();
+  state.activeRole = 'Partner';
+  state.simulatedRole = false;
+  state.currentView = 'home';
+  stopSudokuTicker();
+  stopDrillTicker();
+  stopGstTicker();
+  renderLoginGate();
+}
+// Locks the workspace and asks for a member. `state.activeRole` is left as
+// it was so an aborted sign-in reveals nothing about the previous session.
+function renderLoginGate() {
+  const shell = document.querySelector('.app-shell');
+  const gate = document.getElementById('login-gate');
+  if (!gate) return;
+  if (isSignedIn()) {
+    gate.innerHTML = '';
+    gate.hidden = true;
+    document.body.classList.remove('is-locked');
+    if (shell) shell.hidden = false;
+    syncSessionChrome();
+    return;
+  }
+  document.body.classList.add('is-locked');
+  if (shell) shell.hidden = true;
+  gate.hidden = false;
+  gate.innerHTML = renderLogin();
+  const pinInput = document.getElementById('login-pin');
+  if (pinInput) pinInput.focus();
+}
+function renderLogin() {
+  const f = firm();
+  const pending = state.loginPendingUser;
+  const rows = state.data.users.map(u => {
+    const active = pending && pending.id === u.id;
+    return `
+      <button type="button" class="login-user ${active ? 'is-selected' : ''}" data-action="login-pick" data-user-id="${u.id}">
+        <span class="login-avatar" style="background:${u.avatarBg}">${u.initials}</span>
+        <span class="login-user-text">
+          <span class="login-user-name">${u.name}</span>
+          <span class="login-user-role">${u.role}</span>
+        </span>
+        <span class="login-user-pin">PIN ${pinForUser(u)}</span>
+      </button>`;
+  }).join('');
+  const pinField = pending ? `
+    <div class="login-pin-block">
+      <label class="login-pin-label" for="login-pin">Enter the 4-digit PIN for ${pending.name}</label>
+      <div class="login-pin-row">
+        <input id="login-pin" class="login-pin-input" type="password" inputmode="numeric"
+               maxlength="4" autocomplete="off" placeholder="••••"
+               aria-label="PIN for ${pending.name}" />
+        <button type="button" class="btn-primary login-go" data-action="login-submit">Sign in →</button>
+      </div>
+      ${state.loginError ? `<div class="login-error">${state.loginError}</div>` : ''}
+      <button type="button" class="login-back" data-action="login-pick" data-user-id="">← Choose a different member</button>
+    </div>` : `
+    <div class="login-hint">Select your name to continue.</div>`;
+  return `
+    <div class="login-split">
+      <div class="login-brand">
+        <div class="login-brand-mark" data-firm="monogram">${f.monogram || 'R'}</div>
+        <div class="login-brand-name" data-firm="legalName">${f.legalName || f.name}</div>
+        <p class="login-brand-line">${f.tagline || 'Operating system for the practice.'}</p>
+        <ul class="login-brand-facts">
+          <li><span>GSTIN</span><b>${f.gstin || '—'}</b></li>
+          <li><span>PAN</span><b>${f.pan || '—'}</b></li>
+          <li><span>Membership</span><b>${f.membershipNo || '—'}</b></li>
+          <li><span>Regulator</span><b>${f.regulator || '—'}</b></li>
+          <li><span>Office</span><b>${f.officeLabel || '—'}</b></li>
+        </ul>
+        <div class="login-brand-foot" data-firm="footerNote">${f.footerNote || ''}</div>
+      </div>
+      <div class="login-panel">
+        <div class="eyebrow">Firm access</div>
+        <h1 class="login-title">Sign in to your practice</h1>
+        <p class="login-sub">${state.data.users.length} members · ${state.data.clients.length} clients · ${state.data.engagements.length} live engagements</p>
+        <div class="login-users">${rows}</div>
+        ${pinField}
+        <div class="login-note">
+          🔒 This is a static demo — the PIN gates the interface, it does not authenticate against a server.
+          Each member's PIN is shown beside their name.
+        </div>
+      </div>
+    </div>`;
+}
+function handleLoginPick(userId) {
+  if (!userId) {
+    state.loginPendingUser = null;
+    state.loginError = '';
+    renderLoginGate();
+    return;
+  }
+  const user = state.data.users.find(u => u.id === userId);
+  if (!user) return;
+  state.loginPendingUser = user;
+  state.loginError = '';
+  renderLoginGate();
+}
+function handleLoginSubmit() {
+  const input = document.getElementById('login-pin');
+  const pin = input ? input.value : '';
+  const user = state.loginPendingUser;
+  if (!user) { state.loginError = 'Choose a member first.'; renderLoginGate(); return; }
+  const result = signIn(user.id, pin);
+  if (!result.ok) {
+    state.loginError = result.reason;
+    renderLoginGate();
+    const retry = document.getElementById('login-pin');
+    if (retry) retry.focus();
+    return;
+  }
+  state.loginPendingUser = null;
+  state.loginError = '';
+  state.currentView = 'home';
+  renderLoginGate();
+  applyNavPermissions();
+  syncSessionChrome();
+  navigateTo('home');
+  toast(`Welcome back, ${result.user.name.split(' ')[0]}`);
+}
+// Sidebar footer + topbar must agree with the session, not with activeRole.
+function syncSessionChrome() {
+  const me = currentUser();
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set('user-name-display', me.name);
+  set('user-role-display', me.role);
+  set('session-name', me.name);
+  set('session-role', me.role);
+  set('bc-firm', firm().name || '');
+  const avatar = document.getElementById('user-avatar-initials');
+  if (avatar) {
+    avatar.textContent = me.initials;
+    avatar.style.background = me.avatarBg;
+  }
+  const topAvatar = document.getElementById('session-avatar');
+  if (topAvatar) {
+    topAvatar.textContent = me.initials;
+    topAvatar.style.background = me.avatarBg;
+  }
+  // The role selector is a simulation tool, not an identity control.
+  const roleSelect = document.getElementById('role-select');
+  if (roleSelect) roleSelect.value = me.role;
+  const roleWrap = document.getElementById('role-picker');
+  if (roleWrap) roleWrap.title = `Signed in as ${me.name}. Changing this only simulates another member's permissions.`;
+}
 // ---------- PERMISSION MODEL ----------
 // One source of truth. Nothing below reads anything else for authorization.
 const ALL_ROLES = ['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee'];
@@ -598,7 +818,11 @@ const NAV_ACCESS = {
   search: ALL_ROLES,
   notifications: ALL_ROLES,
   workspace: ['Partner', 'Manager'],
-  firmsettings: ['Partner', 'Manager']
+  firmsettings: ['Partner', 'Manager'],
+  games: ALL_ROLES,
+  'game-sudoku': ALL_ROLES,
+  'game-drill': ALL_ROLES,
+  'game-gst': ALL_ROLES
 };
 
 const ACTION_ACCESS = {
@@ -634,6 +858,12 @@ const VIEW_LABELS = {
 };
 
 function currentUser() {
+  // Identity comes from the session. A role lookup is only used when nobody
+  // is signed in, or when a Partner is deliberately simulating a role.
+  if (!state.simulatedRole) {
+    const session = currentSession();
+    if (session) return session;
+  }
   return state.data.users.find(u => u.role === state.activeRole) || state.data.users[0];
 }
 
@@ -2713,6 +2943,941 @@ function renderPayments() {
     '</div>';
 }
 
+// 23. WORKER GAMES — a maths break for the team.
+// Games deliberately live OUTSIDE the practice data. Puzzle state is in
+// memory only (`state.sudoku` / `state.drill` / `state.gstGame`) and scores
+// persist under their own storage key, so playing can never mutate a client,
+// an engagement, a payment or an audit trail.
+const GAME_KEY = 'acc_workplace_os_games';
+function gameScores() {
+  if (state._gameScores) return state._gameScores;
+  try {
+    state._gameScores = JSON.parse(localStorage.getItem(GAME_KEY)) || {};
+  } catch (e) {
+    state._gameScores = {};
+  }
+  return state._gameScores;
+}
+function saveGameScores() {
+  try {
+    localStorage.setItem(GAME_KEY, JSON.stringify(state._gameScores || {}));
+  } catch (e) { /* storage full or blocked — scores are a nicety, not data */ }
+}
+// Baseline scores so the leaderboard reads like a practice that has been
+// playing for a while. A member's real result always beats the baseline.
+const GAME_BASELINES = {
+  'Rithvik Shah': { sudokuEasy: 214, sudokuMedium: 486, sudokuHard: 940, drill: 1180, gstRound: 9, sudokuSolved: 31 },
+  'Rahul Mehta':  { sudokuEasy: 168, sudokuMedium: 372, sudokuHard: 812, drill: 1460, gstRound: 12, sudokuSolved: 24 },
+  'Priya Nair':   { sudokuEasy: 141, sudokuMedium: 305, sudokuHard: 690, drill: 1320, gstRound: 11, sudokuSolved: 27 },
+  'Arjun Rao':    { sudokuEasy: 196, sudokuMedium: 421, sudokuHard: 905, drill: 1090, gstRound: 8, sudokuSolved: 15 },
+  'Neha Sharma':  { sudokuEasy: 252, sudokuMedium: 558, sudokuHard: 1180, drill: 870, gstRound: 7, sudokuSolved: 9 }
+};
+function myGameStats() {
+  const all = gameScores();
+  return all[currentUser().name] || {};
+}
+function recordGameStat(patch) {
+  const all = gameScores();
+  const who = currentUser().name;
+  all[who] = Object.assign({}, all[who], patch);
+  state._gameScores = all;
+  saveGameScores();
+}
+function statValue(key) {
+  const mine = myGameStats()[key];
+  const base = (GAME_BASELINES[currentUser().name] || {})[key];
+  if (typeof mine === 'number' && typeof base === 'number') return Math.min(mine, base);
+  return typeof mine === 'number' ? mine : base;
+}
+function fmtClock(totalSeconds) {
+  const s = Math.max(0, Math.round(totalSeconds));
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+// ---------- SHARED PUZZLE HELPERS ----------
+function randInt(a, b) {
+  return a + Math.floor(Math.random() * (b - a + 1));
+}
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function sudokuUsedMask(grid, r, c) {
+  let mask = 0;
+  for (let k = 0; k < 9; k++) {
+    if (grid[r * 9 + k]) mask |= 1 << grid[r * 9 + k];
+    if (grid[k * 9 + c]) mask |= 1 << grid[k * 9 + c];
+  }
+  const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const v = grid[(br + i) * 9 + bc + j];
+      if (v) mask |= 1 << v;
+    }
+  }
+  return mask;
+}
+// In-place randomized backtracking. Returns false when the grid is dead.
+function sudokuFill(grid) {
+  const idx = grid.indexOf(0);
+  if (idx === -1) return true;
+  const r = Math.floor(idx / 9), c = idx % 9;
+  const used = sudokuUsedMask(grid, r, c);
+  const options = [];
+  for (let v = 1; v <= 9; v++) if (!(used & (1 << v))) options.push(v);
+  shuffleInPlace(options);
+  for (const v of options) {
+    grid[idx] = v;
+    if (sudokuFill(grid)) return true;
+    grid[idx] = 0;
+  }
+  return false;
+}
+// Counts solutions, giving up at `limit`. Used to keep generated puzzles
+// genuinely unique rather than merely solvable.
+function sudokuCount(grid, limit) {
+  const idx = grid.indexOf(0);
+  if (idx === -1) return 1;
+  const r = Math.floor(idx / 9), c = idx % 9;
+  const used = sudokuUsedMask(grid, r, c);
+  let found = 0;
+  for (let v = 1; v <= 9; v++) {
+    if (used & (1 << v)) continue;
+    grid[idx] = v;
+    found += sudokuCount(grid, limit - found);
+    grid[idx] = 0;
+    if (found >= limit) return found;
+  }
+  return found;
+}
+const SUDOKU_GIVENS = { easy: 40, medium: 32, hard: 26 };
+const SUDOKU_DIFF_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+function sudokuGenerate(difficulty) {
+  const wantGivens = SUDOKU_GIVENS[difficulty] || SUDOKU_GIVENS.medium;
+  const solution = new Array(81).fill(0);
+  sudokuFill(solution);
+  const puzzle = solution.slice();
+  const order = shuffleInPlace([...Array(81).keys()]);
+  let removed = 0;
+  for (const i of order) {
+    if (removed >= 81 - wantGivens) break;
+    const backup = puzzle[i];
+    if (!backup) continue;
+    puzzle[i] = 0;
+    // Only keep the hole if the puzzle still has exactly one answer.
+    if (sudokuCount(puzzle, 2) !== 1) puzzle[i] = backup;
+    else removed++;
+  }
+  return { puzzle, solution };
+}
+function resetSudoku(difficulty) {
+  const level = SUDOKU_GIVENS[difficulty] ? difficulty : 'easy';
+  const { puzzle, solution } = sudokuGenerate(level);
+  state.sudoku = {
+    difficulty: level,
+    puzzle,
+    solution,
+    cells: puzzle.slice(),
+    notes: {},
+    selected: puzzle.findIndex(v => v === 0),
+    history: [],
+    startedAt: Date.now(),
+    elapsed: 0,
+    mistakes: 0,
+    notesMode: false,
+    status: 'playing',
+    peek: null
+  };
+  return state.sudoku;
+}
+function newSudoku(difficulty) {
+  resetSudoku(difficulty);
+  startSudokuTicker();
+  navigateTo('game-sudoku');
+}
+function sudokuElapsed() {
+  if (!state.sudoku) return 0;
+  return state.sudoku.elapsed + (state.sudoku.status === 'playing'
+    ? (Date.now() - state.sudoku.startedAt) / 1000
+    : 0);
+}
+let sudokuTicker = null;
+function sudokuTick() {
+  const g = state.sudoku;
+  if (!g || g.status !== 'playing') { stopSudokuTicker(); return; }
+  const el = document.getElementById('sudoku-clock');
+  if (el) el.textContent = fmtClock(sudokuElapsed());
+}
+function startSudokuTicker() {
+  if (sudokuTicker) return;
+  sudokuTicker = setInterval(sudokuTick, 500);
+}
+function stopSudokuTicker() {
+  if (sudokuTicker) clearInterval(sudokuTicker);
+  sudokuTicker = null;
+}
+// Peers of a cell: same row, column or 3x3 box.
+function sudokuConflicts(g) {
+  const bad = new Set();
+  const addLine = (idxs) => {
+    const seen = new Map();
+    idxs.forEach(i => {
+      const v = g.cells[i];
+      if (!v) return;
+      // Only player-entered cells are flagged. Painting a given red would
+      // imply the puzzle itself is wrong rather than the entry.
+      if (seen.has(v)) {
+        if (!g.puzzle[i]) bad.add(i);
+        if (!g.puzzle[seen.get(v)]) bad.add(seen.get(v));
+      } else seen.set(v, i);
+    });
+  };
+  for (let r = 0; r < 9; r++) addLine([...Array(9)].map((_, c) => r * 9 + c));
+  for (let c = 0; c < 9; c++) addLine([...Array(9)].map((_, r) => r * 9 + c));
+  for (let b = 0; b < 9; b++) {
+    const br = Math.floor(b / 3) * 3, bc = (b % 3) * 3;
+    const idxs = [];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) idxs.push((br + i) * 9 + bc + j);
+    addLine(idxs);
+  }
+  return bad;
+}
+function sudokuCheckComplete(g) {
+  return g.cells.every((v, i) => v === g.solution[i]);
+}
+function sudokuInput(digit) {
+  const g = state.sudoku;
+  if (!g || g.status !== 'playing') return;
+  const i = g.selected;
+  if (i === null || i === undefined || i < 0) return;
+  if (g.puzzle[i] !== 0) { toast('That is a given clue — it cannot be changed.'); return; }
+  g.history.push({ i, cell: g.cells[i], notes: (g.notes[i] || []).slice() });
+  if (g.notesMode) {
+    const list = g.notes[i] || [];
+    if (!list.length && !digit) return;
+    g.cells[i] = 0;
+    g.notes[i] = list.includes(digit) ? list.filter(d => d !== digit) : list.concat(digit).sort();
+  } else {
+    g.cells[i] = digit;
+    delete g.notes[i];
+    if (digit && digit !== g.solution[i]) g.mistakes++;
+  }
+  sudokuSettle(g);
+  navigateTo('game-sudoku');
+}
+function sudokuErase() {
+  const g = state.sudoku;
+  if (!g || g.status !== 'playing') return;
+  const i = g.selected;
+  if (i === null || i === undefined || i < 0 || g.puzzle[i] !== 0) return;
+  if (!g.cells[i] && !(g.notes[i] || []).length) return;
+  g.history.push({ i, cell: g.cells[i], notes: (g.notes[i] || []).slice() });
+  g.cells[i] = 0;
+  delete g.notes[i];
+  navigateTo('game-sudoku');
+}
+function sudokuUndo() {
+  const g = state.sudoku;
+  if (!g || g.status !== 'playing') return;
+  const last = g.history.pop();
+  if (!last) { toast('Nothing left to undo'); return; }
+  g.cells[last.i] = last.cell;
+  if (last.notes.length) g.notes[last.i] = last.notes; else delete g.notes[last.i];
+  g.selected = last.i;
+  navigateTo('game-sudoku');
+}
+function sudokuHint() {
+  const g = state.sudoku;
+  if (!g || g.status !== 'playing') return;
+  let target = g.selected;
+  if (target === null || target === undefined || target < 0 || g.puzzle[target] !== 0) {
+    target = g.cells.findIndex((v, i) => v === 0 && g.puzzle[i] === 0);
+  }
+  if (target < 0) return;
+  g.history.push({ i: target, cell: g.cells[target], notes: (g.notes[target] || []).slice() });
+  g.cells[target] = g.solution[target];
+  delete g.notes[target];
+  g.mistakes += 2;
+  g.selected = target;
+  g.peek = { i: target, until: Date.now() + 2500 };
+  sudokuSettle(g);
+  toast(`Filled ${g.solution[target]} — counted as two mistakes`);
+  navigateTo('game-sudoku');
+}
+function sudokuSettle(g) {
+  if (!sudokuCheckComplete(g)) return;
+  g.status = 'solved';
+  g.elapsed = g.elapsed + (Date.now() - g.startedAt) / 1000;
+  stopSudokuTicker();
+  const key = 'sudoku' + g.difficulty.charAt(0).toUpperCase() + g.difficulty.slice(1);
+  const prev = myGameStats()[key];
+  // Under a second means the grid was machine-filled, so it is not a record.
+  const isBest = g.elapsed >= 1 && (typeof prev !== 'number' || g.elapsed < prev);
+  recordGameStat({
+    [key]: isBest ? Math.round(g.elapsed) : prev,
+    sudokuSolved: (myGameStats().sudokuSolved || 0) + 1
+  });
+  toast(`Solved in ${fmtClock(g.elapsed)}${isBest ? ' — new personal best' : ''}`);
+}
+function renderSudoku() {
+  let g = state.sudoku;
+  if (!g) g = resetSudoku('easy');
+  if (g.status === 'playing') startSudokuTicker();
+  const conflicts = sudokuConflicts(g);
+  const selVal = g.selected >= 0 ? g.cells[g.selected] : 0;
+  let grid = '';
+  for (let i = 0; i < 81; i++) {
+    const r = Math.floor(i / 9), c = i % 9;
+    const v = g.cells[i];
+    const notes = g.notes[i] || [];
+    const cls = ['sudoku-cell'];
+    if (g.puzzle[i] !== 0) cls.push('is-given');
+    if (i === g.selected) cls.push('is-selected');
+    if (conflicts.has(i)) cls.push('is-conflict');
+    if (selVal && v === selVal && i !== g.selected) cls.push('is-peer');
+    if (g.peek && g.peek.i === i && Date.now() < g.peek.until) cls.push('is-peek');
+    if (r % 3 === 0 && r !== 0) cls.push('box-top');
+    if (c % 3 === 0 && c !== 0) cls.push('box-left');
+    const inner = v
+      ? `<span class="cell-value">${v}</span>`
+      : notes.length
+        ? `<span class="cell-notes">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => notes.includes(n) ? n : '').map((n, k) => `<i>${n || '&nbsp;'}</i>`).join('')}</span>`
+        : '';
+    grid += `<button type="button" class="${cls.join(' ')}" data-sudoku-cell="${i}" aria-label="Row ${r + 1} column ${c + 1}">${inner}</button>`;
+  }
+  const remaining = g.cells.filter((v, i) => v === 0 && g.puzzle[i] === 0).length;
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Break Room · Sudoku</div>
+        <h1>Number Grid</h1>
+        <p>Warm the same brain you use for reconciliations. Nothing here touches practice data.</p>
+      </div>
+      <div class="page-actions">
+        ${['easy', 'medium', 'hard'].map(d =>
+          `<button class="btn-secondary ${g.difficulty === d ? 'is-on' : ''}" data-action="sudoku-new" data-difficulty="${d}">${SUDOKU_DIFF_LABEL[d]}</button>`).join('')}
+        <button class="btn-primary" data-action="sudoku-new" data-difficulty="${g.difficulty}">↻ New puzzle</button>
+      </div>
+    </div>
+    ${g.status === 'solved' ? `
+      <div class="game-win">
+        <div class="game-win-mark">✓</div>
+        <div>
+          <div class="game-win-title">Grid complete — ${fmtClock(g.elapsed)}</div>
+          <div class="game-win-sub">${SUDOKU_DIFF_LABEL[g.difficulty]} · ${g.mistakes} mistake${g.mistakes === 1 ? '' : 's'} · ${remaining === 0 ? 'clean finish' : remaining + ' clues left'}</div>
+        </div>
+        <button class="btn-primary" data-action="sudoku-new" data-difficulty="${g.difficulty}">Play again</button>
+      </div>` : ''}
+    <div class="game-layout">
+      <div class="game-main">
+        <div class="sudoku-meta">
+          <span class="pill">${SUDOKU_DIFF_LABEL[g.difficulty]}</span>
+          <span class="pill">${g.puzzle.filter(v => v !== 0).length} given</span>
+          <span class="pill">${remaining} left</span>
+          <span class="pill ${g.mistakes ? 'pill-red' : ''}">${g.mistakes} mistake${g.mistakes === 1 ? '' : 's'}</span>
+          <span class="pill pill-clock">⏱ <span id="sudoku-clock">${fmtClock(sudokuElapsed())}</span></span>
+          <button class="pill pill-btn ${g.notesMode ? 'is-on' : ''}" data-action="sudoku-notes">✎ Notes ${g.notesMode ? 'on' : 'off'}</button>
+        </div>
+        <div class="sudoku-grid" data-sudoku-grid>${grid}</div>
+        <div class="numpad">
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" class="numpad-key" data-action="sudoku-num" data-num="${n}">${n}</button>`).join('')}
+          <button type="button" class="numpad-key numpad-wide" data-action="sudoku-erase">Erase</button>
+          <button type="button" class="numpad-key numpad-wide" data-action="sudoku-undo">Undo</button>
+          <button type="button" class="numpad-key numpad-wide" data-action="sudoku-hint">Hint (−2)</button>
+        </div>
+      </div>
+      <aside class="game-side">
+        <div class="card">
+          <div class="card-title">How to play</div>
+          <ul class="game-help">
+            <li>Click a cell, then press a number below — or just type 1–9.</li>
+            <li>A repeated digit in a row, column or box turns red.</li>
+            <li>Notes mode keeps small pencil marks without locking the answer in.</li>
+            <li>Backspace erases, Ctrl+Z undoes, H reveals one cell.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Your records</div>
+          <div class="stat-line"><span>Easy</span><b>${statValue('sudokuEasy') ? fmtClock(statValue('sudokuEasy')) : '—'}</b></div>
+          <div class="stat-line"><span>Medium</span><b>${statValue('sudokuMedium') ? fmtClock(statValue('sudokuMedium')) : '—'}</b></div>
+          <div class="stat-line"><span>Hard</span><b>${statValue('sudokuHard') ? fmtClock(statValue('sudokuHard')) : '—'}</b></div>
+          <div class="stat-line"><span>Puzzles solved</span><b>${Math.max(myGameStats().sudokuSolved || 0, (GAME_BASELINES[currentUser().name] || {}).sudokuSolved || 0)}</b></div>
+        </div>
+      </aside>
+    </div>`;
+}
+// ---------- MATH SPEED DRILL ----------
+const DRILL_SECONDS = 60;
+const DRILL_LEVELS = [
+  { n: 1, label: 'Add and subtract within 100' },
+  { n: 2, label: 'Multiply by a single digit' },
+  { n: 3, label: 'Divide back out cleanly' },
+  { n: 4, label: 'Percentages — GST and TDS' },
+  { n: 5, label: 'Mixed: markup, margin, averages' }
+];
+function drillQuestion(level) {
+  const round2 = v => Math.round(v * 100) / 100;
+  switch (level) {
+    case 1: {
+      const a = randInt(11, 98), b = randInt(5, Math.min(60, a - 2));
+      return Math.random() < 0.5
+        ? { text: `${a} + ${b}`, answer: a + b }
+        : { text: `${a + b} − ${b}`, answer: a };
+    }
+    case 2: {
+      const a = randInt(12, 99), b = randInt(3, 9);
+      return { text: `${a} × ${b}`, answer: a * b };
+    }
+    case 3: {
+      const b = randInt(3, 12), a = randInt(12, 99);
+      return { text: `${a * b} ÷ ${b}`, answer: a };
+    }
+    case 4: {
+      const base = randInt(4, 60) * 100;
+      const rate = [5, 10, 18][randInt(0, 2)];
+      const roll = Math.random();
+      if (roll < 0.4) return { text: `${rate}% GST on ₹${base.toLocaleString('en-IN')}`, answer: round2(base * rate / 100) };
+      if (roll < 0.7) return { text: `Invoice of ₹${base.toLocaleString('en-IN')} + ${rate}% GST — total?`, answer: round2(base * (1 + rate / 100)) };
+      return { text: `TDS at ${rate}% on a ₹${(base * 2).toLocaleString('en-IN')} bill`, answer: round2(base * 2 * rate / 100) };
+    }
+    default: {
+      const cost = randInt(20, 200) * 50;
+      const roll = Math.random();
+      if (roll < 0.3) return { text: `Cost ₹${cost.toLocaleString('en-IN')} marked up 25% — price?`, answer: round2(cost * 1.25) };
+      if (roll < 0.55) return { text: `Price ₹${(cost * 1.4).toLocaleString('en-IN')} less 15% discount — net?`, answer: round2(cost * 1.4 * 0.85) };
+      if (roll < 0.8) {
+        const n = randInt(4, 5);
+        const parts = [...Array(n)].map(() => randInt(2, 40) * 250);
+        const sum = parts.reduce((x, y) => x + y, 0);
+        return { text: `Average of ${parts.join(', ')}`, answer: round2(sum / n) };
+      }
+      const a = randInt(3, 12), b = randInt(4, 15), c = randInt(5, 20);
+      return { text: `(${a} × ${b} + ${c} × ${a}) ÷ ${a}`, answer: b + c };
+    }
+  }
+}
+function drillAnswerText(v) {
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
+}
+function resetDrill() {
+  state.drill = {
+    status: 'ready',
+    score: 0,
+    streak: 0,
+    bestStreak: 0,
+    correct: 0,
+    wrong: 0,
+    level: 1,
+    question: drillQuestion(1),
+    entry: '',
+    endsAt: 0,
+    remaining: DRILL_SECONDS,
+    lastVerdict: null
+  };
+  return state.drill;
+}
+function newDrill() {
+  resetDrill();
+  navigateTo('game-drill');
+}
+function startDrill() {
+  if (!state.drill) resetDrill();
+  state.drill.status = 'running';
+  state.drill.endsAt = Date.now() + DRILL_SECONDS * 1000;
+  state.drill.remaining = DRILL_SECONDS;
+  startDrillTicker();
+  navigateTo('game-drill');
+}
+function endDrill() {
+  const d = state.drill;
+  if (!d || d.status === 'done') return;
+  d.status = 'done';
+  d.remaining = 0;
+  stopDrillTicker();
+  const prev = myGameStats().drill;
+  // A round stopped with no answers is not a result.
+  const isBest = d.score > 0 && (typeof prev !== 'number' || d.score > prev);
+  recordGameStat({ drill: isBest ? d.score : prev, drillRounds: (myGameStats().drillRounds || 0) + 1 });
+  toast(`Round over · ${d.score} points${isBest ? ' — new personal best' : ''}`);
+  navigateTo('game-drill');
+}
+// Seconds left on the running round, straight off the deadline.
+function drillLeft(d) {
+  return Math.max(0, (d.endsAt - Date.now()) / 1000);
+}
+function drillTick() {
+  const d = state.drill;
+  if (!d || d.status !== 'running') { stopDrillTicker(); return; }
+  const left = drillLeft(d);
+  d.remaining = left;
+  const el = document.getElementById('drill-clock');
+  if (el) el.textContent = `${Math.ceil(left)}s`;
+  const bar = document.getElementById('drill-bar');
+  if (bar) bar.style.width = `${(left / DRILL_SECONDS) * 100}%`;
+  if (left <= 0) endDrill();
+}
+let drillTicker = null;
+function startDrillTicker() {
+  if (drillTicker) return;
+  drillTicker = setInterval(drillTick, 100);
+}
+function stopDrillTicker() {
+  if (drillTicker) clearInterval(drillTicker);
+  drillTicker = null;
+}
+function drillPress(key) {
+  const d = state.drill;
+  if (!d || d.status === 'done') return;
+  if (d.status === 'ready') { startDrill(); return; }
+  if (d.status !== 'running') return;
+  if (key === 'clear') { d.entry = ''; return; }
+  if (key === 'back') { d.entry = d.entry.slice(0, -1); return; }
+  if (key === '.') {
+    if (!d.entry.includes('.')) d.entry = (d.entry || '0') + '.';
+    return;
+  }
+  if (!/^\d$/.test(key)) return;
+  if (d.entry.replace('.', '').length >= 8) return;
+  d.entry = d.entry === '0' ? key : d.entry + key;
+}
+function drillSubmit() {
+  const d = state.drill;
+  if (!d || d.status !== 'running') return;
+  if (!d.entry) { toast('Type an answer first'); return; }
+  const given = Number(d.entry);
+  const right = Math.abs(given - d.question.answer) < 0.005;
+  d.entry = '';
+  if (right) {
+    d.correct++;
+    d.streak++;
+    d.bestStreak = Math.max(d.bestStreak, d.streak);
+    const speed = Math.max(0, Math.round(d.remaining / DRILL_SECONDS * 10));
+    d.score += 10 + d.streak * 2 + speed;
+    d.lastVerdict = { ok: true, text: `Correct · +${10 + (d.streak - 1) * 2 + speed}` };
+  } else {
+    d.wrong++;
+    d.streak = 0;
+    d.lastVerdict = { ok: false, text: `${given} is wrong — the answer was ${drillAnswerText(d.question.answer)}` };
+  }
+  if (d.correct + d.wrong >= 3) {
+    const target = Math.min(5, Math.max(1, Math.ceil((d.correct + d.wrong) / 4)));
+    if (target !== d.level) { d.level = target; d.lastVerdict.bumped = true; }
+  }
+  d.question = drillQuestion(d.level);
+  if (Date.now() >= d.endsAt) endDrill();
+  navigateTo('game-drill');
+}
+function renderDrill() {
+  let d = state.drill;
+  if (!d) d = resetDrill();
+  if (d.status === 'running') startDrillTicker();
+  const accuracy = d.correct + d.wrong ? Math.round((d.correct / (d.correct + d.wrong)) * 100) : 0;
+  let body = '';
+  if (d.status === 'done') {
+    body = `
+      <div class="game-stage game-stage-done">
+        <div class="drill-final">
+          <div class="drill-final-score">${d.score}</div>
+          <div class="drill-final-label">points</div>
+          <div class="stat-line"><span>Correct</span><b>${d.correct}</b></div>
+          <div class="stat-line"><span>Wrong</span><b>${d.wrong}</b></div>
+          <div class="stat-line"><span>Accuracy</span><b>${accuracy}%</b></div>
+          <div class="stat-line"><span>Best streak</span><b>${d.bestStreak}</b></div>
+          <div class="stat-line"><span>Reached</span><b>Level ${d.level}</b></div>
+          <button class="btn-primary" data-action="drill-start">↻ Run it again</button>
+        </div>
+      </div>`;
+  } else if (d.status === 'ready') {
+    body = `
+      <div class="game-stage game-stage-done">
+        <div class="drill-final">
+          <div class="drill-final-label">60 seconds</div>
+          <div class="drill-brief">
+            <p>Five levels of mental arithmetic, weighted towards the numbers an accountant actually touches: additions, multiplications, GST at 5/10/18%, TDS, markup, discount and averages.</p>
+            <p>Streak bonus up to 2 points a question, plus a speed bonus that decays as the clock runs down.</p>
+          </div>
+          <button class="btn-primary" data-action="drill-start">▶ Start the clock</button>
+        </div>
+      </div>`;
+  } else {
+    body = `
+      <div class="game-stage">
+        <div class="drill-clock-row">
+          <span class="drill-clock" id="drill-clock">${Math.ceil(d.status === 'running' ? drillLeft(d) : d.remaining)}s</span>
+          <div class="drill-track"><div class="drill-bar" id="drill-bar" style="width:${(d.remaining / DRILL_SECONDS) * 100}%"></div></div>
+        </div>
+        <div class="drill-q" id="drill-question">${d.question.text} = ?</div>
+        <div class="drill-entry ${d.entry ? 'has-entry' : ''}">${d.entry || ' '}</div>
+        ${d.lastVerdict ? `<div class="drill-verdict ${d.lastVerdict.ok ? 'ok' : 'bad'}">${d.lastVerdict.text}${d.lastVerdict.bumped ? ` · level ${d.level}: ${DRILL_LEVELS[d.level - 1].label.toLowerCase()}` : ''}</div>` : '<div class="drill-verdict"></div>'}
+        <div class="numpad numpad-drill">
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" class="numpad-key" data-drill-key="${n}">${n}</button>`).join('')}
+          <button type="button" class="numpad-key" data-drill-key="clear">C</button>
+          <button type="button" class="numpad-key" data-drill-key="0">0</button>
+          <button type="button" class="numpad-key" data-drill-key="back">⌫</button>
+        </div>
+        <button class="btn-primary drill-submit" data-action="drill-submit">Submit ⏎</button>
+      </div>`;
+  }
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Break Room · Speed Drill</div>
+        <h1>Sixty Seconds</h1>
+        <p>Mental arithmetic against the clock. Accuracy compounds; guessing does not.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn-secondary" data-navigate="games">← Back to games</button>
+        ${d.status === 'running' ? '<button class="btn-secondary" data-action="drill-stop">■ Stop round</button>' : ''}
+      </div>
+    </div>
+    <div class="game-layout">
+      <div class="game-main">${body}</div>
+      <aside class="game-side">
+        <div class="card">
+          <div class="card-title">This round</div>
+          <div class="stat-line"><span>Score</span><b>${d.score}</b></div>
+          <div class="stat-line"><span>Streak</span><b>${d.streak}</b></div>
+          <div class="stat-line"><span>Accuracy</span><b>${accuracy}%</b></div>
+          <div class="stat-line"><span>Level</span><b>${d.level} / 5</b></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Levels</div>
+          ${DRILL_LEVELS.map(l => `<div class="stat-line ${l.n === d.level ? 'is-on' : ''}"><span>${l.n}. ${l.label}</span></div>`).join('')}
+        </div>
+        <div class="card">
+          <div class="card-title">Personal best</div>
+          <div class="stat-line"><span>Drill</span><b>${statValue('drill') || 0} pts</b></div>
+        </div>
+      </aside>
+    </div>`;
+}
+// ---------- GST CHALLENGE ----------
+const GST_ROUND_SECONDS = 90;
+function gstChallengeQuestion() {
+  const r0 = v => Math.round(v);
+  const base = randInt(12, 90) * 1000;
+  const kinds = ['inclusive', 'exclusive', 'tds', 'markup', 'itc'];
+  const kind = kinds[randInt(0, kinds.length - 1)];
+  let correct, explain;
+  if (kind === 'inclusive') {
+    const rate = [5, 12, 18, 28][randInt(0, 3)];
+    const total = base * (1 + rate / 100);
+    correct = r0(total - total / (1 + rate / 100));
+    explain = `₹${total.toLocaleString('en-IN')} inclusive of ${rate}% GST → taxable value ₹${(total / (1 + rate / 100)).toLocaleString('en-IN')}, so tax is ₹${correct.toLocaleString('en-IN')}. Reverse-calculate by dividing by 1.${rate}.`;
+    return { text: `A bill of ₹${total.toLocaleString('en-IN')} is GST-inclusive at ${rate}%. What is the tax amount?`, correct, explain };
+  }
+  if (kind === 'exclusive') {
+    const rate = [5, 12, 18, 28][randInt(0, 3)];
+    correct = r0(base * (1 + rate / 100));
+    explain = `₹${base.toLocaleString('en-IN')} + ${rate}% = ₹${correct.toLocaleString('en-IN')}.`;
+    return { text: `Taxable value ₹${base.toLocaleString('en-IN')} at ${rate}% GST. Invoice total?`, correct, explain };
+  }
+  if (kind === 'tds') {
+    const rate = [5, 10][randInt(0, 1)];
+    correct = r0(base * 2 * rate / 100);
+    explain = `u/s 194J professional fees are deducted at ${rate}% on payment: ₹${(base * 2).toLocaleString('en-IN')} × ${rate}% = ₹${correct.toLocaleString('en-IN')}.`;
+    return { text: `TDS u/s 194J at ${rate}% on a professional fee of ₹${(base * 2).toLocaleString('en-IN')}. Deducted?`, correct, explain };
+  }
+  if (kind === 'markup') {
+    const markup = [10, 20, 25, 30][randInt(0, 3)];
+    correct = r0(base * (1 + markup / 100));
+    explain = `₹${base.toLocaleString('en-IN')} × ${1 + markup / 100} = ₹${correct.toLocaleString('en-IN')}.`;
+    return { text: `Cost ₹${base.toLocaleString('en-IN')} marked up ${markup}%. Selling price?`, correct, explain };
+  }
+  // ITC must stay below the output liability: a negative "payable" is really a
+  // credit carried forward, which is a different question on a different line.
+  const itc = Math.floor(base * (0.10 + Math.random() * 0.45) / 500) * 500;
+  correct = r0(base - itc);
+  explain = `Output ₹${base.toLocaleString('en-IN')} − eligible ITC ₹${itc.toLocaleString('en-IN')} = ₹${correct.toLocaleString('en-IN')} payable. Blocked credits (ITC-04, 16A, 16B, 17, 18) never enter this.`;
+  return { text: `Output tax liability ₹${base.toLocaleString('en-IN')}, eligible input credit ₹${itc.toLocaleString('en-IN')}. Payable?`, correct, explain };
+}
+function gstOptions(answer) {
+  const set = new Set([answer]);
+  const spread = [0.04, 0.08, 0.12, 0.18, 0.25];
+  let guard = 0;
+  while (set.size < 4 && guard++ < 60) {
+    const f = 1 + spread[randInt(0, spread.length - 1)] * (Math.random() < 0.5 ? 1 : -1);
+    const v = Math.max(0, Math.round(answer * f / 100) * 100);
+    if (v !== answer) set.add(v);
+  }
+  return shuffleInPlace([...set]);
+}
+function resetGstRound() {
+  state.gstGame = {
+    status: 'ready',
+    score: 0,
+    correct: 0,
+    wrong: 0,
+    streak: 0,
+    asked: 0,
+    q: gstChallengeQuestion(),
+    options: gstOptions(0),
+    chosen: null,
+    endsAt: 0,
+    remaining: GST_ROUND_SECONDS
+  };
+  state.gstGame.options = gstOptions(state.gstGame.q.correct);
+  return state.gstGame;
+}
+function newGstRound() {
+  resetGstRound();
+  navigateTo('game-gst');
+}
+function startGstRound() {
+  if (!state.gstGame) resetGstRound();
+  state.gstGame.status = 'running';
+  state.gstGame.endsAt = Date.now() + GST_ROUND_SECONDS * 1000;
+  startGstTicker();
+  navigateTo('game-gst');
+}
+function endGstRound() {
+  const g = state.gstGame;
+  if (!g || g.status === 'done') return;
+  g.status = 'done';
+  g.remaining = 0;
+  stopGstTicker();
+  const prev = myGameStats().gstRound;
+  const isBest = g.score > 0 && (typeof prev !== 'number' || g.score > prev);
+  recordGameStat({ gstRound: isBest ? g.score : prev });
+  toast(`Round over · ${g.score} points${isBest ? ' — new personal best' : ''}`);
+  navigateTo('game-gst');
+}
+function gstLeft(g) {
+  return Math.max(0, (g.endsAt - Date.now()) / 1000);
+}
+function gstTick() {
+  const g = state.gstGame;
+  if (!g || g.status !== 'running') { stopGstTicker(); return; }
+  const left = gstLeft(g);
+  g.remaining = left;
+  const el = document.getElementById('gst-clock');
+  if (el) el.textContent = `${Math.ceil(left)}s`;
+  const bar = document.getElementById('gst-bar');
+  if (bar) bar.style.width = `${(left / GST_ROUND_SECONDS) * 100}%`;
+  if (left <= 0) endGstRound();
+}
+let gstTicker = null;
+function startGstTicker() {
+  if (gstTicker) return;
+  gstTicker = setInterval(gstTick, 100);
+}
+function stopGstTicker() {
+  if (gstTicker) clearInterval(gstTicker);
+  gstTicker = null;
+}
+function gstAnswer(value) {
+  const g = state.gstGame;
+  if (!g || g.status !== 'running' || g.chosen !== null) return;
+  g.chosen = value;
+  g.asked++;
+  const right = value === g.q.correct;
+  if (right) {
+    g.correct++;
+    g.streak++;
+    g.score += 10 + Math.min(10, g.streak) * 2;
+  } else {
+    g.wrong++;
+    g.streak = 0;
+  }
+  navigateTo('game-gst');
+}
+function gstNext() {
+  const g = state.gstGame;
+  if (!g || g.status !== 'running' || g.chosen === null) return;
+  if (Date.now() >= g.endsAt) { endGstRound(); return; }
+  g.q = gstChallengeQuestion();
+  g.options = gstOptions(g.q.correct);
+  g.chosen = null;
+  navigateTo('game-gst');
+}
+function renderGstGame() {
+  let g = state.gstGame;
+  if (!g) g = resetGstRound();
+  if (g.status === 'running') startGstTicker();
+  const answered = g.chosen !== null;
+  let stage;
+  if (g.status === 'done') {
+    stage = `
+      <div class="game-stage game-stage-done">
+        <div class="drill-final">
+          <div class="drill-final-score">${g.score}</div>
+          <div class="drill-final-label">points</div>
+          <div class="stat-line"><span>Answered</span><b>${g.asked}</b></div>
+          <div class="stat-line"><span>Correct</span><b>${g.correct}</b></div>
+          <div class="stat-line"><span>Wrong</span><b>${g.wrong}</b></div>
+          <div class="stat-line"><span>Accuracy</span><b>${g.asked ? Math.round((g.correct / g.asked) * 100) : 0}%</b></div>
+          <button class="btn-primary" data-action="gst-start">↻ Run it again</button>
+        </div>
+      </div>`;
+  } else if (g.status === 'ready') {
+    stage = `
+      <div class="game-stage game-stage-done">
+        <div class="drill-final">
+          <div class="drill-final-label">90 seconds · 5 question types</div>
+          <div class="drill-brief">
+            <p>Reverse-calculate GST out of an inclusive bill, total an exclusive invoice, deduct TDS u/s 194J, mark up cost, and net off input credit against output liability.</p>
+            <p>Every answer shows the working afterwards — read it even when you got it right.</p>
+          </div>
+          <button class="btn-primary" data-action="gst-start">▶ Start the round</button>
+        </div>
+      </div>`;
+  } else {
+    stage = `
+      <div class="game-stage">
+        <div class="drill-clock-row">
+          <span class="drill-clock" id="gst-clock">${Math.ceil(g.status === 'running' ? gstLeft(g) : g.remaining)}s</span>
+          <div class="drill-track"><div class="drill-bar" id="gst-bar" style="width:${(g.remaining / GST_ROUND_SECONDS) * 100}%"></div></div>
+        </div>
+        <div class="gst-q">${g.q.text}</div>
+        <div class="gst-options">
+          ${g.options.map(v => {
+            let cls = 'gst-option';
+            if (answered) {
+              if (v === g.q.correct) cls += ' is-correct';
+              else if (v === g.chosen) cls += ' is-wrong';
+              else cls += ' is-dim';
+            }
+            return `<button type="button" class="${cls}" data-action="gst-answer" data-value="${v}" ${answered ? 'disabled' : ''}>₹${v.toLocaleString('en-IN')}</button>`;
+          }).join('')}
+        </div>
+        ${answered ? `
+          <div class="gst-explain ${g.chosen === g.q.correct ? 'ok' : 'bad'}">
+            <div class="gst-explain-head">${g.chosen === g.q.correct ? '✓ Correct' : `✗ Answer was ₹${g.q.correct.toLocaleString('en-IN')}`}</div>
+            <p>${g.q.explain}</p>
+            <button class="btn-primary" data-action="gst-next">Next question ⏎</button>
+          </div>` : ''}
+      </div>`;
+  }
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Break Room · GST Challenge</div>
+        <h1>Reverse GST Drill</h1>
+        <p>The arithmetic behind a return nobody enjoys doing by hand.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn-secondary" data-navigate="games">← Back to games</button>
+        ${g.status === 'running' ? '<button class="btn-secondary" data-action="gst-stop">■ Stop round</button>' : ''}
+      </div>
+    </div>
+    <div class="game-layout">
+      <div class="game-main">${stage}</div>
+      <aside class="game-side">
+        <div class="card">
+          <div class="card-title">This round</div>
+          <div class="stat-line"><span>Score</span><b>${g.score}</b></div>
+          <div class="stat-line"><span>Streak</span><b>${g.streak}</b></div>
+          <div class="stat-line"><span>Answered</span><b>${g.asked}</b></div>
+          <div class="stat-line"><span>Correct</span><b>${g.correct}</b></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Question types</div>
+          <div class="stat-line"><span>Inclusive bill → tax out</span></div>
+          <div class="stat-line"><span>Exclusive value → invoice total</span></div>
+          <div class="stat-line"><span>TDS u/s 194J at 5% / 10%</span></div>
+          <div class="stat-line"><span>Markup on cost</span></div>
+          <div class="stat-line"><span>Output less eligible ITC</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Personal best</div>
+          <div class="stat-line"><span>GST round</span><b>${statValue('gstRound') || 0} pts</b></div>
+        </div>
+      </aside>
+    </div>`;
+}
+// ---------- GAMES HUB ----------
+function gameLeaderboard() {
+  const rows = state.data.users.map(u => {
+    const mine = gameScores()[u.name] || {};
+    const base = GAME_BASELINES[u.name] || {};
+    const pick = k => (typeof mine[k] === 'number' && typeof base[k] === 'number')
+      ? Math.min(mine[k], base[k])
+      : (typeof mine[k] === 'number' ? mine[k] : base[k]);
+    return {
+      name: u.name,
+      initials: u.initials,
+      color: u.avatarBg,
+      drill: pick('drill') || 0,
+      gst: pick('gstRound') || 0,
+      easy: pick('sudokuEasy'),
+      hard: pick('sudokuHard'),
+      points: (pick('drill') || 0) / 10 + (pick('gstRound') || 0) / 5
+    };
+  });
+  return rows.sort((a, b) => b.points - a.points);
+}
+function renderGames() {
+  const board = gameLeaderboard();
+  const me = currentUser();
+  const myRow = board.find(r => r.name === me.name) || board[0];
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Break Room</div>
+        <h1>Games for the team</h1>
+        <p>Three short maths games. Scored privately, stored separately, and completely detached from client data.</p>
+      </div>
+      <div class="page-actions">
+        <button class="btn-secondary" data-navigate="home">← Back to work</button>
+      </div>
+    </div>
+    <div class="game-cards">
+      <button class="game-card" data-navigate="game-sudoku">
+        <div class="game-card-icon">🔢</div>
+        <div class="game-card-body">
+          <div class="game-card-title">Sudoku</div>
+          <div class="game-card-sub">9×9 logic grid with notes, hints and a clock. Three difficulties.</div>
+          <div class="game-card-stat">Best easy ${statValue('sudokuEasy') ? fmtClock(statValue('sudokuEasy')) : '—'} · hard ${statValue('sudokuHard') ? fmtClock(statValue('sudokuHard')) : '—'}</div>
+        </div>
+        <div class="game-card-go">Play →</div>
+      </button>
+      <button class="game-card" data-navigate="game-drill">
+        <div class="game-card-icon">⚡</div>
+        <div class="game-card-body">
+          <div class="game-card-title">Speed Drill</div>
+          <div class="game-card-sub">60 seconds of arithmetic across five levels, weighted to GST, TDS and markup.</div>
+          <div class="game-card-stat">Personal best ${statValue('drill') || 0} points</div>
+        </div>
+        <div class="game-card-go">Play →</div>
+      </button>
+      <button class="game-card" data-navigate="game-gst">
+        <div class="game-card-icon">🧮</div>
+        <div class="game-card-body">
+          <div class="game-card-title">GST Challenge</div>
+          <div class="game-card-sub">90 seconds of reverse GST, TDS u/s 194J, markup and input-credit netting — with the working shown.</div>
+          <div class="game-card-stat">Personal best ${statValue('gstRound') || 0} points</div>
+        </div>
+        <div class="game-card-go">Play →</div>
+      </button>
+    </div>
+    <div class="grid-2" style="margin-top:24px">
+      <div class="card">
+        <div class="card-title">Practice leaderboard</div>
+        <div class="leaderboard">
+          <div class="leaderboard-row leaderboard-head">
+            <span>Member</span><span>Drill</span><span>GST</span><span>Sudoku E</span><span>Pts</span>
+          </div>
+          ${board.map((r, i) => `
+            <div class="leaderboard-row ${r.name === me.name ? 'is-me' : ''}">
+              <span class="leaderboard-who"><i class="lb-avatar" style="background:${r.color}">${r.initials}</i>${i + 1}. ${r.name}</span>
+              <span>${r.drill || '—'}</span>
+              <span>${r.gst || '—'}</span>
+              <span>${r.easy ? fmtClock(r.easy) : '—'}</span>
+              <span><b>${Math.round(r.points)}</b></span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Why this exists</div>
+        <p class="card-text">Reconciling a 2B against a register is arithmetic under time pressure. These drills train the same reflex: 18% of a round number, a division that comes out clean, a total that must be right to the rupee.</p>
+        <p class="card-text">Nothing played here is written to <code>acc_workplace_os_data</code>. Scores live under their own key, and no game reads a client, an engagement or a payment.</p>
+        <div class="stat-line"><span>Your rank</span><b>${board.findIndex(r => r.name === me.name) + 1} of ${board.length}</b></div>
+        <div class="stat-line"><span>Your points</span><b>${Math.round(myRow.points)}</b></div>
+      </div>
+    </div>`;
+}
 // MAIN APP NAVIGATION RENDER ROUTER
 function navigateTo(viewName) {
   if (viewName !== 'home' && !canSee(viewName)) {
@@ -2755,7 +3920,11 @@ function navigateTo(viewName) {
     notifications: 'Notifications',
     workspace: 'Switch Workspace',
     payments: 'Payments Out',
-    gstrecon: 'GST 2A/2B Recon'
+    gstrecon: 'GST 2A/2B Recon',
+    games: 'Games',
+    'game-sudoku': 'Sudoku',
+    'game-drill': 'Speed Drill',
+    'game-gst': 'GST Challenge'
   };
   pageTitleBc.textContent = labelMap[viewName] || 'Overview';
 
@@ -2787,6 +3956,10 @@ function navigateTo(viewName) {
     case 'workspace': appView.innerHTML = renderWorkspace(); break;
     case 'gstrecon': appView.innerHTML = renderGstRecon(); break;
     case 'payments': appView.innerHTML = renderPayments(); break;
+    case 'games': appView.innerHTML = renderGames(); break;
+    case 'game-sudoku': appView.innerHTML = renderSudoku(); break;
+    case 'game-drill': appView.innerHTML = renderDrill(); break;
+    case 'game-gst': appView.innerHTML = renderGstGame(); break;
     default: appView.innerHTML = renderHome(); break;
   }
 }
@@ -3022,6 +4195,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Sudoku cell selection
+    const sudCell = e.target.closest('[data-sudoku-cell]');
+    if (sudCell && state.sudoku) {
+      state.sudoku.selected = Number(sudCell.dataset.sudokuCell);
+      navigateTo('game-sudoku');
+      return;
+    }
+    // Drill numpad
+    const drillKey = e.target.closest('[data-drill-key]');
+    if (drillKey) {
+      drillPress(drillKey.dataset.drillKey);
+      navigateTo('game-drill');
+      return;
+    }
     // Quick Action Triggers
     const actBtn = e.target.closest('[data-action]');
     if (actBtn) {
@@ -3047,6 +4234,58 @@ document.addEventListener('DOMContentLoaded', () => {
           state.activeClientSubTab = 'overview';
         }
         navigateTo(target || 'home');
+      }
+      else if (act === 'sudoku-new') {
+        newSudoku(actBtn.dataset.difficulty);
+      }
+      else if (act === 'sudoku-notes') {
+        if (state.sudoku) {
+          state.sudoku.notesMode = !state.sudoku.notesMode;
+          toast(state.sudoku.notesMode ? 'Notes mode on' : 'Notes mode off');
+          navigateTo('game-sudoku');
+        }
+      }
+      else if (act === 'sudoku-num') {
+        sudokuInput(Number(actBtn.dataset.num));
+      }
+      else if (act === 'sudoku-erase') {
+        sudokuErase();
+      }
+      else if (act === 'sudoku-undo') {
+        sudokuUndo();
+      }
+      else if (act === 'sudoku-hint') {
+        sudokuHint();
+      }
+      else if (act === 'drill-start') {
+        startDrill();
+      }
+      else if (act === 'drill-stop') {
+        endDrill();
+      }
+      else if (act === 'drill-submit') {
+        drillSubmit();
+      }
+      else if (act === 'gst-start') {
+        startGstRound();
+      }
+      else if (act === 'gst-stop') {
+        endGstRound();
+      }
+      else if (act === 'gst-answer') {
+        gstAnswer(Number(actBtn.dataset.value));
+      }
+      else if (act === 'gst-next') {
+        gstNext();
+      }
+      else if (act === 'login-pick') {
+        handleLoginPick(actBtn.dataset.userId || '');
+      }
+      else if (act === 'login-submit') {
+        handleLoginSubmit();
+      }
+      else if (act === 'sign-out') {
+        signOut('Signed out from the top bar');
       }
       else if (act === 'pay-refresh') {
         state.payFrom = document.getElementById('pay-from').value;
@@ -3124,24 +4363,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Games keyboard: only active while a game is on screen.
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    const typing = tag === 'input' || tag === 'textarea' || tag === 'select';
+    const view = state.currentView;
+    if (view === 'game-sudoku') {
+      if (e.key >= '1' && e.key <= '9' && !typing) { sudokuInput(Number(e.key)); return; }
+      if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); sudokuErase(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); sudokuUndo(); return; }
+      if (e.key.toLowerCase() === 'h' && !typing) { sudokuHint(); return; }
+      if (e.key.toLowerCase() === 'n' && !typing) {
+        if (state.sudoku) { state.sudoku.notesMode = !state.sudoku.notesMode; navigateTo('game-sudoku'); }
+        return;
+      }
+      if (e.key.startsWith('Arrow') && state.sudoku && state.sudoku.selected >= 0) {
+        e.preventDefault();
+        const cur = state.sudoku.selected;
+        const dr = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+        const dc = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+        const r = Math.max(0, Math.min(8, Math.floor(cur / 9) + dr));
+        const c = Math.max(0, Math.min(8, cur % 9 + dc));
+        state.sudoku.selected = r * 9 + c;
+        navigateTo('game-sudoku');
+      }
+      return;
+    }
+    if (view === 'game-drill' && state.drill && state.drill.status === 'running') {
+      if (e.key === 'Enter') { e.preventDefault(); drillSubmit(); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); drillPress('back'); navigateTo('game-drill'); return; }
+      if (e.key === 'Escape') { drillPress('clear'); navigateTo('game-drill'); return; }
+      if (typing) return;
+      if (/^[0-9]$/.test(e.key) || e.key === '.') { drillPress(e.key); navigateTo('game-drill'); }
+      return;
+    }
+    if (view === 'game-gst' && state.gstGame && state.gstGame.status === 'running' && e.key === 'Enter') {
+      e.preventDefault();
+      if (state.gstGame.chosen === null) toast('Pick an option first');
+      else gstNext();
+      return;
+    }
+    // Enter submits the PIN on the sign-in screen.
+    if (e.key === 'Enter' && e.target.id === 'login-pin') {
+      e.preventDefault();
+      handleLoginSubmit();
+    }
+  });
   // Role Selector Event
   const roleSelect = document.getElementById('role-select');
   if (roleSelect) {
     roleSelect.addEventListener('change', (e) => {
-      state.activeRole = e.target.value;
-      const me = currentUser();
-      const roleDisplay = document.getElementById('user-role-display');
-      const nameDisplay = document.getElementById('user-name-display');
-      const avatar = document.getElementById('user-avatar-initials');
-      if (roleDisplay) roleDisplay.textContent = me.role;
-      if (nameDisplay) nameDisplay.textContent = me.name;
-      if (avatar) {
-        avatar.textContent = me.initials;
-        avatar.style.background = me.avatarBg;
-      }
+      const me = state.data.users.find(u => u.role === e.target.value);
+      if (!me) return;
+      // Simulation only. The session stays signed in as the real member,
+      // and the audit trail still attributes work to them.
+      const real = currentSession();
+      state.activeRole = me.role;
+      state.simulatedRole = true;
       applyNavPermissions();
+      syncSessionChrome();
       navigateTo(canSee(state.currentView) ? state.currentView : 'home');
-      toast(`Now acting as ${me.name} (${me.role})`);
+      toast(`Simulating ${me.name} (${me.role})` + (real ? ` — still signed in as ${real.name}` : ''));
     });
   }
 
@@ -3299,8 +4581,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Initialize: apply configured firm branding, then render the default view.
+  // Initialize: branding first (the sign-in gate needs it), then the gate
+  // decides whether a workspace is shown at all.
   applyFirmBranding();
+  renderLoginGate();
+  if (!isSignedIn()) return;
+  // A restored session must also restore the role the permissions read.
+  const restored = currentSession();
+  if (restored) state.activeRole = restored.role;
   applyNavPermissions();
+  syncSessionChrome();
   navigateTo('home');
 });
