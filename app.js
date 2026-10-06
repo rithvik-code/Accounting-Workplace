@@ -1676,9 +1676,14 @@ function renderDocuments() {
                 <td><strong>${d.version}</strong></td>
                 <td>${renderBadge(d.status)}</td>
                 <td>
-                  <button class="btn-primary" style="padding:4px 10px; font-size:11px;" data-open-review="${d.id}">
-                    Review / Version
-                  </button>
+                  <div class="doc-row-actions">
+                    <button class="btn-secondary" style="padding:4px 10px; font-size:11px;" data-open-doc="${d.id}">
+                      👁 View
+                    </button>
+                    <button class="btn-primary" style="padding:4px 10px; font-size:11px;" data-open-review="${d.id}">
+                      Review / Version
+                    </button>
+                  </div>
                 </td>
               </tr>
             `).join('')}
@@ -1689,6 +1694,506 @@ function renderDocuments() {
   `;
 }
 
+// ---------- DOCUMENT VIEWER, UPLOAD & SAVE-TO-FILE ----------
+const MAX_STORED_TEXT = 180 * 1024; // localStorage is a few MB shared with all practice data
+const VAULT_ENDPOINT = '/vault/save';
+const DOC_CATEGORIES = ['Bank', 'GST', 'TDS', 'Expenses', 'Payroll', 'Financials', 'Client Paper', 'Other'];
+function docEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+// The body of a document is derived from its id, so re-opening, downloading
+// and re-saving the same document always produce byte-identical output.
+function docRand(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function docSeedOf(str) {
+  let h = 2166136261;
+  for (let i = 0; i < String(str).length; i++) {
+    h ^= String(str).charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function docPad(s, n) {
+  s = String(s);
+  return s.length >= n ? s : s + ' '.repeat(n - s.length);
+}
+// Money and quantities are right-aligned: a register whose figures all start at
+// the left edge does not read as a ledger.
+function docNum(s, n) {
+  s = String(s);
+  return s.length >= n ? s : ' '.repeat(n - s.length) + s;
+}
+function docRule(width) {
+  return '-'.repeat(width);
+}
+function docBank(d, r) {
+  const lines = [];
+  const rows = 14;
+  const narrations = ['NEFT IMPS NEFT-IN FROM BLUEPEAK LOG', 'NEFT IMPS NEFT-OUT TO VENDOR PAYABLE', 'UPI CREDIT SALES RECEIPT', 'IMPS NEFT-IN HDFC BANK LTD',
+    'NEFT NEFT-OUT PROFESSIONAL FEES', 'RTGS RTGS-IN ORBIT STEELS LLP', 'NEFT NEFT-OUT GST CHALLAN', 'UPI DEBIT PETTY CASH', 'NEFT NEFT-IN TATVA LOGISTICS'];
+  // Rows are drawn first, in date order, so the statement reads forwards. The
+  // opening balance is then set above the total outflow, which keeps the
+  // running balance positive — a generated ledger that goes overdrawn halfway
+  // through reads as broken rather than as stress.
+  const tx = [];
+  let outflow = 0;
+  for (let i = 0; i < rows; i++) {
+    const out = r() > 0.45;
+    const amt = Math.round((20000 + r() * 480000) / 100) * 100;
+    if (out) outflow += amt;
+    tx.push({
+      day: 2 + Math.round(i * (26 / (rows - 1))),
+      payee: narrations[Math.floor(r() * narrations.length)],
+      ref: 'TXN' + (900000 + Math.floor(r() * 99999)),
+      out,
+      amt
+    });
+  }
+  let bal = outflow + 450000 + Math.floor(r() * 400000);
+  const opening = bal;
+  lines.push('ABC MANUFACTURING PVT LTD');
+  lines.push('HDFC Bank · A/C 50200012345678 · Gandhi Road Branch, Pune');
+  lines.push('Statement for August 2026');
+  lines.push('');
+  lines.push('OPENING BALANCE AS ON 01-08-2026: ' + inr(opening));
+  lines.push('');
+  lines.push(docPad('DATE', 13) + docPad('PARTICULARS', 32) + docPad('REF', 11) + docNum('WITHDRAWAL', 15) + docNum('DEPOSIT', 15) + docNum('BALANCE', 16));
+  lines.push(docRule(102));
+  for (const t of tx) {
+    bal += t.out ? -t.amt : t.amt;
+    lines.push(docPad('01-' + String(t.day).padStart(2, '0') + '-2026', 13) + docPad(t.payee, 32) + docPad(t.ref, 11) +
+      docNum(t.out ? t.amt.toLocaleString('en-IN') : '-', 15) + docNum(t.out ? '-' : t.amt.toLocaleString('en-IN'), 15) +
+      docNum(bal.toLocaleString('en-IN'), 16));
+  }
+  lines.push('');
+  lines.push('CLOSING BALANCE AS PER STATEMENT: ' + inr(bal));
+  lines.push('RECONCILING ITEMS OUTSTANDING: 3 cheques issued but not presented.');
+  return lines.join('\n');
+}
+function docGst(d, r) {
+  const outward = [];
+  const inward = [];
+  let outTax = 0;
+  let inTax = 0;
+  for (const rate of [5, 12, 18, 28]) {
+    const taxable = Math.round((180000 + r() * 1900000) / 1000) * 1000;
+    const tax = Math.round(taxable * rate / 100);
+    outTax += tax;
+    outward.push(docPad('Outward supplies @ ' + rate + '%', 34) + docNum(taxable.toLocaleString('en-IN'), 16) + docPad(rate + '%', 8) + docNum(tax.toLocaleString('en-IN'), 14));
+    const itc = Math.round(taxable * (0.18 + r() * 0.5) * rate / 100);
+    inTax += itc;
+    inward.push(docPad('ITC @ ' + rate + '%', 34) + docNum(taxable.toLocaleString('en-IN'), 16) + docPad(rate + '%', 8) + docNum(itc.toLocaleString('en-IN'), 14));
+  }
+  const lines = [];
+  lines.push('GSTR-3B SUMMARY · QUARTER JULY – SEPTEMBER 2026');
+  lines.push('GSTIN 27AABCU9603R1ZX · Rao & Co., Chartered Accountants');
+  lines.push('');
+  lines.push('PART A · OUTWARD SUPPLIES');
+  lines.push(docPad('DESCRIPTION', 34) + docNum('TAXABLE VALUE', 16) + docPad('RATE', 8) + docNum('TAX', 14));
+  lines.push(docRule(72));
+  lines.push(...outward);
+  lines.push(docPad('TOTAL OUTPUT TAX', 58) + docNum(outTax.toLocaleString('en-IN'), 14));
+  lines.push('');
+  lines.push('PART B · INPUT TAX CREDIT');
+  lines.push(docPad('DESCRIPTION', 34) + docNum('TAXABLE VALUE', 16) + docPad('RATE', 8) + docNum('ITC', 14));
+  lines.push(docRule(72));
+  lines.push(...inward);
+  lines.push(docPad('TOTAL ITC AVAILABLE', 58) + docNum(inTax.toLocaleString('en-IN'), 14));
+  lines.push('');
+  lines.push('NET TAX PAYABLE: ' + inr(Math.max(0, outTax - inTax)));
+  if (outTax - inTax < 0) lines.push('Excess ITC carried forward: ' + inr(inTax - outTax));
+  lines.push('');
+  lines.push('COMPLIANCE: GSTR-3B due on the 20th of the following month; GSTR-1 on the 11th.');
+  lines.push('Interest u/s 50 applies beyond the due date at 18% p.a.');
+  return lines.join('\n');
+}
+// Nature of payment, the section it falls under, and the rate — the three
+// numbers a TDS register has to carry together.
+const TDS_NATURES = [
+  ['Rent', '194I', 10],
+  ['Salary', '192', 0],
+  ['Commission', '194H', 10],
+  ['Professional Fees', '194J', 10],
+  ['Contract Payment', '194C', 1],
+  ['Interest (other than FD)', '194A', 20]
+];
+function docTds(d, r) {
+  const lines = [];
+  const rows = 12;
+  lines.push('TDS DEDUCTION REGISTER · FY 2025-26');
+  lines.push('PAN of deductor AAACT2727Q · Rao & Co., Chartered Accountants');
+  lines.push('');
+  lines.push(docPad('DEDUCTEE', 26) + docPad('PAN', 12) + docPad('NATURE', 20) + docPad('SEC', 6) + docNum('GROSS', 14) + docPad('RATE', 7) + 'TDS');
+  lines.push(docRule(105));
+  let total = 0;
+  let gross = 0;
+  for (let i = 0; i < rows; i++) {
+    const [nature, section, rate] = TDS_NATURES[Math.floor(r() * TDS_NATURES.length)];
+    const g = Math.round((50000 + r() * 2400000) / 1000) * 1000;
+    const t = Math.round(g * rate / 100);
+    total += t;
+    gross += g;
+    const name = ['BLUEPEAK LOGISTICS LLP', 'ORBIT STEELS PRIVATE LTD', 'TATVA CONSULTANTS', 'NILKANTH PROPERTIES', 'SARAL ENTERPRISES',
+      'KADBA INTERIORS', 'VISTARA TECHNICAL SERVICES', 'MEGH DOOT RESORTS'][Math.floor(r() * 8)];
+    lines.push(docPad(name, 26) + docPad('AA' + ['BCR', 'EPZ', 'FGT', 'KLQ', 'NRS'][Math.floor(r() * 5)] + '1234' + 'Q', 12) +
+      docPad(nature, 20) + docPad(section, 6) + docNum(g.toLocaleString('en-IN'), 14) + docPad(rate + '%', 7) + (rate ? docNum(t.toLocaleString('en-IN'), 14) : 'n/a — salary, no TDS'));
+  }
+  lines.push('');
+  lines.push('GROSS PAYMENTS: ' + inr(gross) + '    TOTAL TDS DEDUCTED: ' + inr(total));
+  lines.push('Deposit TDS with the government by the 7th of the following month.');
+  lines.push('File Form 26AS by the 31st of July, October, January and 7 May.');
+  return lines.join('\n');
+}
+function docExpenses(d, r) {
+  const cats = ['Raw Material', 'Machinery', 'Professional Fees', 'Rent', 'Utilities', 'Travel', 'Repairs'];
+  const vendors = ['TATA STEEL LIMITED', 'KIRLOSAR PNEUMATICS', 'SIEMENS INDIA LTD', 'GODREJ CONSUMER', 'ADITYA CHEMICALS', 'BALAJI TRANSPORT'];
+  const lines = [];
+  const rows = 15;
+  lines.push('PURCHASE / EXPENSE REGISTER · AUGUST 2026');
+  lines.push('ABC Manufacturing Pvt Ltd · GSTIN 27AABCU9603R1ZX');
+  lines.push('');
+  lines.push(docPad('INVOICE', 16) + docPad('VENDOR', 26) + docPad('DATE', 12) + docPad('CATEGORY', 18) + docNum('TAXABLE', 13) + docNum('GST', 11) + docNum('TOTAL', 14));
+  lines.push(docRule(104));
+  let taxable = 0;
+  let tax = 0;
+  for (let i = 0; i < rows; i++) {
+    const cat = cats[Math.floor(r() * cats.length)];
+    const t = Math.round((25000 + r() * 900000) / 100) * 100;
+    const g = Math.round(t * 0.18);
+    taxable += t;
+    tax += g;
+    lines.push(docPad('PI/26-27/' + (1000 + Math.floor(r() * 8999)), 16) + docPad(vendors[Math.floor(r() * vendors.length)], 26) +
+      docPad('1' + (Math.floor(r() * 9) + 1) + '-08-2026', 12) + docPad(cat, 18) + docNum(t.toLocaleString('en-IN'), 13) + docNum(g.toLocaleString('en-IN'), 11) + docNum((t + g).toLocaleString('en-IN'), 14));
+  }
+  lines.push('');
+  lines.push('TOTAL TAXABLE: ' + inr(taxable) + '    TOTAL GST: ' + inr(tax) + '    GRAND TOTAL: ' + inr(taxable + tax));
+  lines.push('ITC claimable only against a valid tax invoice; GSTR-2B mismatch to be reconciled.');
+  return lines.join('\n');
+}
+function docPayroll(d, r) {
+  const lines = [];
+  const rows = 10;
+  lines.push('PAYROLL REGISTER · AUGUST 2026 · ABC MANUFACTURING PVT LTD');
+  lines.push('');
+  lines.push(docPad('EMP CODE', 11) + docPad('NAME', 24) + docNum('GROSS', 13) + docNum('PF (EPF)', 12) + docNum('ESI', 9) + docNum('NET', 14));
+  lines.push(docRule(78));
+  let gross = 0;
+  for (let i = 0; i < rows; i++) {
+    const g = Math.round((18000 + r() * 82000) / 100) * 100;
+    gross += g;
+    const pf = Math.round(g * 0.12);
+    const esi = Math.round(g * 0.0075);
+    lines.push(docPad('EMP' + (1001 + i), 11) + docPad(['RAHUL SHARMA', 'NEHA JOSHI', 'AMIT VERMA', 'SUNITA PATIL', 'VIKRAM SINGH'][i % 5] + ' ' + (i + 1), 24) +
+      docNum(g.toLocaleString('en-IN'), 13) + docNum(pf.toLocaleString('en-IN'), 12) + docNum(esi.toLocaleString('en-IN'), 9) + docNum((g - pf - esi).toLocaleString('en-IN'), 14));
+  }
+  lines.push('');
+  lines.push('TOTAL GROSS: ' + inr(gross));
+  lines.push('EPF and ESI contributions are due by the 15th of the following month.');
+  return lines.join('\n');
+}
+function docFinancials(d, r) {
+  const lines = [];
+  lines.push('ABC MANUFACTURING PVT LTD');
+  lines.push('PROFIT AND LOSS ACCOUNT · FY 2025-26');
+  lines.push('');
+  lines.push(docPad('PARTICULAR', 40) + docNum('AMOUNT', 16));
+  lines.push(docRule(56));
+  const sales = Math.round((8000000 + r() * 20000000) / 1000) * 1000;
+  const lines1 = [
+    ['Revenue from operations', sales],
+    ['Cost of materials consumed', -Math.round(sales * 0.52)],
+    ['Employee benefit expense', -Math.round(sales * 0.11)],
+    ['Finance costs', -Math.round(sales * 0.03)],
+    ['Depreciation & amortisation', -Math.round(sales * 0.04)],
+    ['Other operating expenses', -Math.round(sales * 0.09)]
+  ];
+  let total = 0;
+  for (const [k, v] of lines1) {
+    total += v;
+    lines.push(docPad(k, 40) + docNum(v.toLocaleString('en-IN'), 16));
+  }
+  lines.push(docRule(56));
+  lines.push(docPad('PROFIT BEFORE TAX', 40) + docNum(total.toLocaleString('en-IN'), 16));
+  lines.push(docPad('Tax expense', 40) + docNum((-Math.round(total * 0.2532)).toLocaleString('en-IN'), 16));
+  lines.push(docPad('PROFIT AFTER TAX', 40) + docNum(Math.round(total * 0.7468).toLocaleString('en-IN'), 16));
+  return lines.join('\n');
+}
+function docGeneric(d) {
+  const lines = [];
+  lines.push(String(d.name || 'DOCUMENT').toUpperCase());
+  lines.push(`${d.clientName || ''} · ${d.engagementTitle || ''}`);
+  lines.push('');
+  lines.push('This document has no structured content in the practice store.');
+  lines.push('Upload a file, or record it against a category that synthesises content:');
+  lines.push(DOC_CATEGORIES.join(', '));
+  return lines.join('\n');
+}
+// The one true body of a document. Uploaded files keep the bytes that were
+// read off disk; seeded practice documents are derived from their own id so the
+// output is stable.
+function docText(d) {
+  if (typeof d.content === 'string' && d.content) return d.content;
+  const r = docRand(docSeedOf(d.id + '|' + d.name));
+  switch (String(d.category || '').toLowerCase()) {
+    case 'bank': return docBank(d, r);
+    case 'gst': return docGst(d, r);
+    case 'tds': return docTds(d, r);
+    case 'expenses': return docExpenses(d, r);
+    case 'payroll': return docPayroll(d, r);
+    case 'financials': return docFinancials(d, r);
+    default: return docGeneric(d);
+  }
+}
+function docKeyFigures(d) {
+  const r = docRand(docSeedOf(d.id + '|' + d.name));
+  switch (String(d.category || '').toLowerCase()) {
+    case 'gst': {
+      let out = 0;
+      for (const rate of [5, 12, 18, 28]) out += Math.round((Math.round((180000 + r() * 1900000) / 1000) * 1000) * rate / 100);
+      return [['Period', 'Jul – Sep 2026'], ['Output tax', inr(out)], ['Due date', '20th of next month']];
+    }
+    case 'bank':
+      return [['Account', 'HDFC ···345678'], ['Period', 'August 2026'], ['Lines', '14 transactions']];
+    case 'tds':
+      return [['Period', 'FY 2025-26'], ['Deposit by', '7th of next month'], ['Return', '26AS quarterly']];
+    case 'expenses':
+      return [['Period', 'August 2026'], ['Lines', '15 invoices'], ['ITC', 'Reconcile with GSTR-2B']];
+    default:
+      return [['Version', d.version || 'v1.0'], ['Category', d.category || '—'], ['Uploaded', d.uploadDate || '—']];
+  }
+}
+function openDocViewer(docId) {
+  const d = state.data.documents.find(x => x.id === docId);
+  if (!d) {
+    toast('That document is no longer in the store.');
+    return;
+  }
+  const text = docText(d);
+  const root = document.getElementById('modal-root');
+  const figures = docKeyFigures(d);
+  const lines = text.split('\n').length;
+  const bytes = new Blob([text]).size;
+  root.innerHTML = `
+    <div class="modal-box doc-viewer-box">
+      <div class="modal-header">
+        <h3>${docEscape(d.name)}</h3>
+        <p>${docEscape(d.clientName)} · ${docEscape(d.engagementTitle)} · ${docEscape(d.version)}</p>
+      </div>
+      <div class="doc-viewer-meta">
+        ${figures.map(f => `<div class="doc-figure"><span>${docEscape(f[0])}</span><strong>${docEscape(f[1])}</strong></div>`).join('')}
+        <div class="doc-figure"><span>Status</span><strong>${renderBadge(d.status)}</strong></div>
+      </div>
+      <pre class="doc-sheet" id="doc-sheet-text">${docEscape(text)}</pre>
+      <div class="doc-viewer-foot">
+        <small>${lines} lines · ${bytes.toLocaleString('en-IN')} bytes${d.source === 'upload' ? ' · uploaded from disk' : ' · generated from the practice store'}</small>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="close-doc-viewer">Close</button>
+        <button type="button" class="btn-secondary" data-action="doc-download" data-doc="${d.id}">⭳ Save a copy</button>
+        <button type="button" class="btn-primary" data-action="doc-vault" data-doc="${d.id}">💾 Save to firm vault</button>
+      </div>
+    </div>
+  `;
+  root.classList.add('open');
+  document.getElementById('close-doc-viewer').onclick = () => closeDocViewer();
+}
+function closeDocViewer() {
+  document.getElementById('modal-root').classList.remove('open');
+}
+function docVaultName(d) {
+  const stamp = String(d.uploadDate || '').replace(/\D/g, '').slice(0, 12) || '000000000000';
+  return `${d.id}_${stamp}_${d.name}`.replace(/[\\/]+/g, '_');
+}
+function downloadDoc(d) {
+  const text = docText(d);
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = d.name.replace(/\.[A-Za-z0-9]+$/, '') + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  state.addAuditLog(currentUser().name, 'Downloaded Document', d.name);
+  state.save();
+  toast(`Saved "${d.name}" to your downloads`);
+}
+// Writes the document into the project's documents/ folder through the local
+// dev server. When that endpoint is absent — the app opened straight off the
+// filesystem — it degrades to a download rather than failing silently.
+function saveDocToVault(d) {
+  const text = docText(d);
+  const payload = { name: docVaultName(d), content: text };
+  let settled = false;
+  const fallback = (why) => {
+    if (settled) return;
+    settled = true;
+    downloadDoc(d);
+    toast(`${why} Saved a copy to your downloads instead.`);
+  };
+  const timer = setTimeout(() => fallback('Vault is not responding.'), 4000);
+  fetch(VAULT_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(r => r.json().then(j => ({ ok: r.ok, j })))
+    .then(({ ok, j }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!ok || !j.ok) {
+        downloadDoc(d);
+        toast(`Vault refused the write · saved a copy to your downloads instead`);
+        return;
+      }
+      state.addAuditLog(currentUser().name, 'Saved to Firm Vault', d.name);
+      state.save();
+      toast(`Written to ${j.path}`);
+    })
+    .catch(() => {
+      clearTimeout(timer);
+      fallback('Vault is offline.');
+    });
+}
+function fmtBytes(n) {
+  const v = Number(n) || 0;
+  if (v < 1024) return v + ' B';
+  if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+  return (v / 1048576).toFixed(1) + ' MB';
+}
+// Uploading reads the file off disk and keeps its text, so the document that
+// was uploaded is the document that opens, saves and downloads.
+function onDocFilePicked(input) {
+  const note = document.getElementById('doc-file-note');
+  const title = document.getElementById('form-title-input');
+  const file = input.files && input.files[0];
+  if (!file) {
+    if (note) note.textContent = 'No file chosen. Content will be generated from the category.';
+    return;
+  }
+  if (note) note.textContent = `Reading ${file.name} (${fmtBytes(file.size)})…`;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const raw = String(reader.result || '');
+    let content = raw;
+    let truncated = false;
+    if (raw.length > MAX_STORED_TEXT) {
+      content = raw.slice(0, MAX_STORED_TEXT);
+      truncated = true;
+    }
+    input.dataset.docContent = content;
+    input.dataset.docSize = String(file.size);
+    input.dataset.docName = file.name;
+    input.dataset.docType = file.type || '';
+    if (title && !title.value.trim()) title.value = file.name;
+    if (note) {
+      note.textContent = truncated
+        ? `${file.name} is ${fmtBytes(file.size)}; the first ${fmtBytes(MAX_STORED_TEXT)} of text is stored and the rest is dropped.`
+        : `${file.name} · ${fmtBytes(file.size)} will be stored as the document's content.`;
+    }
+  };
+  reader.onerror = () => {
+    if (note) note.textContent = 'That file could not be read. Pick another, or leave it empty to generate content.';
+  };
+  reader.readAsText(file);
+}
+function openDocumentModal() {
+  const needed = MODAL_ACCESS['document'];
+  if (needed && !needed.some(cap => can(cap))) {
+    toast(`Access denied · ${state.activeRole} role cannot create a document.`);
+    return;
+  }
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Upload Document</h3>
+        <p>Choose a file from your computer, or record a document by category.</p>
+      </div>
+      <form id="document-form">
+        <div class="form-group">
+          <label>Document Name</label>
+          <input required id="form-title-input" placeholder="e.g. Bank Statement — August" />
+        </div>
+        <div class="form-group">
+          <label>File from your computer</label>
+          <input type="file" id="doc-file-input" />
+          <small id="doc-file-note">No file chosen. Content will be generated from the category.</small>
+        </div>
+        <div class="form-group">
+          <label>Client</label>
+          <select id="form-client-select">
+            ${state.data.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="form-category-select">
+            ${DOC_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="close-modal">Cancel</button>
+          <button type="submit" class="btn-primary">Save Document</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+  const fileInput = document.getElementById('doc-file-input');
+  fileInput.addEventListener('change', () => onDocFilePicked(fileInput));
+  document.getElementById('close-modal').onclick = () => {
+    root.classList.remove('open');
+  };
+  document.getElementById('document-form').onsubmit = (e) => {
+    e.preventDefault();
+    const title = document.getElementById('form-title-input').value.trim();
+    const clientId = document.getElementById('form-client-select').value;
+    const category = document.getElementById('form-category-select').value;
+    const client = getClient(clientId);
+    const content = fileInput.dataset.docContent || '';
+    const uploaded = !!content;
+    const doc = {
+      id: 'd_' + Date.now(),
+      name: uploaded ? (fileInput.dataset.docName || title) : title,
+      clientId,
+      clientName: client.name,
+      engagementTitle: client.engagementTitle || 'Statutory Compliance',
+      uploadedBy: currentUser().name,
+      uploadDate: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      version: 'v1.0',
+      status: 'Waiting for Review',
+      reviewer: state.data.users.find(u => u.role === 'Manager') ? state.data.users.find(u => u.role === 'Manager').name : currentUser().name,
+      size: uploaded ? fmtBytes(Number(fileInput.dataset.docSize) || content.length) : 'Generated',
+      category,
+      source: uploaded ? 'upload' : 'generated',
+      comments: []
+    };
+    // An uploaded document carries its own bytes; a generated one has no
+    // content field, so docText() synthesises a body from its category.
+    if (uploaded) doc.content = content;
+    state.data.documents.unshift(doc);
+    state.addAuditLog(currentUser().name, 'Uploaded Document', doc.name);
+    state.save();
+    root.classList.remove('open');
+    toast(`Uploaded "${doc.name}" to ${client.name}`);
+    navigateTo(state.currentView);
+    openDocViewer(doc.id);
+  };
+}
 // 9. REVIEWS & APPROVAL WORKFLOW
 function renderReviews() {
   const pendingReviews = state.data.documents.filter(d => d.status === 'Waiting for Review');
@@ -4051,8 +4556,13 @@ function openCreateModal(type) {
     return;
   }
 
+  // This form only knows how to create a task. Any other type must be handled
+  // by its own creator, otherwise submitting silently files the wrong record.
+  if (type !== 'task') {
+    toast(`${type} creation is not wired up yet.`);
+    return;
+  }
   const root = document.getElementById('modal-root');
-
   root.innerHTML = `
     <div class="modal-box">
       <div class="modal-header">
@@ -4174,6 +4684,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Open the Document Viewer
+    const viewBtn = e.target.closest('[data-open-doc]');
+    if (viewBtn) {
+      openDocViewer(viewBtn.dataset.openDoc);
+      return;
+    }
     // Open Document Review Drawer
     const revBtn = e.target.closest('[data-open-review]');
     if (revBtn) {
@@ -4334,7 +4850,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       else if (act === 'quick-create' || act === 'new-task') openCreateModal('task');
       else if (act === 'new-client') openCreateModal('client');
-      else if (act === 'upload-doc') openCreateModal('document');
+      else if (act === 'upload-doc') openDocumentModal();
+      else if (act === 'doc-download') downloadDoc(state.data.documents.find(d => d.id === actBtn.dataset.doc));
+      else if (act === 'doc-vault') saveDocToVault(state.data.documents.find(d => d.id === actBtn.dataset.doc));
       else if (act === 'new-request') openCreateModal('client request');
       else if (act === 'new-event') openCreateModal('calendar event');
       else if (act === 'new-announcement') openCreateModal('announcement');

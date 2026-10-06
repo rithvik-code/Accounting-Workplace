@@ -2979,4 +2979,106 @@ body.is-locked .app-shell { display: none !important; }
   .gst-options { grid-template-columns: 1fr; }
   .numpad { grid-template-columns: repeat(5, 1fr); }
   .sudoku-grid { max-width: 100%; }
+}/* ------------------------------------------------------------------ */
+/* 26. DOCUMENT VIEWER, UPLOAD & SAVE-TO-FILE                          */
+/* ------------------------------------------------------------------ */
+
+/* Row of actions in the Documents table — two buttons have to sit side by side
+   without breaking the table cell. */
+.doc-row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* The viewer is wider and taller than a form modal: a document needs room to
+   be read, which is the whole point of opening it. */
+.doc-viewer-box {
+  width: min(880px, 95vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Key figures pulled out of the document, above the body. */
+.doc-viewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.doc-figure {
+  flex: 1 1 140px;
+  min-width: 140px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.doc-figure > span {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.doc-figure > strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* The document body. Monospace on purpose: these are registers and statements,
+   and a proportional face destroys column alignment. It is the same text that
+   gets downloaded, so alignment here is alignment in the saved file. */
+.doc-sheet {
+  flex: 1 1 auto;
+  min-height: 220px;
+  overflow: auto;
+  margin: 0 0 12px;
+  padding: 16px 18px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font-mono, 'Consolas', 'SF Mono', 'Roboto Mono', monospace);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre;
+  tab-size: 4;
+}
+
+.doc-viewer-foot {
+  margin-bottom: 4px;
+}
+
+.doc-viewer-foot small {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+/* The file input is styled as a field so the upload modal reads like the rest
+   of the app rather than falling back to the native control. */
+#doc-file-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#doc-file-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  min-height: 14px;
 }
