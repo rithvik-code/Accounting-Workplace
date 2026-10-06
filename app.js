@@ -3378,12 +3378,9 @@ function resetDrill() {
   };
   return state.drill;
 }
-function newDrill() {
-  resetDrill();
-  navigateTo('game-drill');
-}
 function startDrill() {
-  if (!state.drill) resetDrill();
+  // A finished round replays through the same button, so start from a clean slate.
+  if (!state.drill || state.drill.status === 'done') resetDrill();
   state.drill.status = 'running';
   state.drill.endsAt = Date.now() + DRILL_SECONDS * 1000;
   state.drill.remaining = DRILL_SECONDS;
@@ -3621,12 +3618,9 @@ function resetGstRound() {
   state.gstGame.options = gstOptions(state.gstGame.q.correct);
   return state.gstGame;
 }
-function newGstRound() {
-  resetGstRound();
-  navigateTo('game-gst');
-}
 function startGstRound() {
-  if (!state.gstGame) resetGstRound();
+  // A finished round replays through the same button, so start from a clean slate.
+  if (!state.gstGame || state.gstGame.status === 'done') resetGstRound();
   state.gstGame.status = 'running';
   state.gstGame.endsAt = Date.now() + GST_ROUND_SECONDS * 1000;
   startGstTicker();
