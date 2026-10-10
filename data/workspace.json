@@ -957,6 +957,55 @@
   ],
   "auditLogs": [
     {
+      "id": "al_1791645205951",
+      "time": "2026-10-10 15:13",
+      "user": "Rahul Mehta",
+      "action": "Signed in",
+      "target": "Manager session started"
+    },
+    {
+      "id": "al_1791645158068",
+      "time": "2026-10-10 15:12",
+      "user": "Rithvik Shah",
+      "action": "Signed out",
+      "target": "Signed out from the top bar"
+    },
+    {
+      "id": "al_1791644996314",
+      "time": "2026-10-10 15:09",
+      "user": "Rithvik Shah",
+      "action": "Downloaded Document",
+      "target": "Bank_Statement_Aug_2026.pdf"
+    },
+    {
+      "id": "al_1791644888208",
+      "time": "2026-10-10 15:08",
+      "user": "Rithvik Shah",
+      "action": "Updated Task Status",
+      "target": "Prepare GST Reconciliation Statement"
+    },
+    {
+      "id": "al_1791644886150",
+      "time": "2026-10-10 15:08",
+      "user": "Rithvik Shah",
+      "action": "Updated Task Status",
+      "target": "Prepare GST Reconciliation Statement"
+    },
+    {
+      "id": "al_1791644875712",
+      "time": "2026-10-10 15:07",
+      "user": "Rithvik Shah",
+      "action": "Signed in",
+      "target": "Partner session started"
+    },
+    {
+      "id": "al_1791644829266",
+      "time": "2026-10-10 15:07",
+      "user": "Rithvik Shah",
+      "action": "Signed out",
+      "target": "Signed out from the top bar"
+    },
+    {
       "id": "al_1791644050399",
       "time": "2026-10-10 14:54",
       "user": "Rithvik Shah",

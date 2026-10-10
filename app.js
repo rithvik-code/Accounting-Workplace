@@ -995,18 +995,26 @@ function renderBadge(status) {
 }
 
 // VIEW RENDERERS
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 // 1. MAIN HOME WORKSPACE
 function renderHome() {
-  const overdueTasks = state.data.tasks.filter(t => t.dueDate < '2026-09-06' || t.status === 'Changes Requested');
-  const todayTasks = state.data.tasks.filter(t => t.status === 'In Progress' || t.status === 'Ready for Review');
+  const today = localDateKey();
+  const todayLabel = new Intl.DateTimeFormat('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(`${today}T00:00:00`));
+  const activeTasks = state.data.tasks.filter(t => t.status !== 'Completed');
+  const overdueTasks = activeTasks.filter(t => t.dueDate && t.dueDate < today);
+  const todayTasks = activeTasks.filter(t => t.dueDate === today);
+  const todayClients = new Set(todayTasks.map(t => t.clientId).filter(Boolean)).size;
+  const todayEvents = (state.data.calendarEvents || []).filter(e => e.date === today);
   const reviewDocs = state.data.documents.filter(d => d.status === 'Waiting for Review');
   const pendingRequests = state.data.requests.filter(r => r.status !== 'All received');
 
   return `
     <div class="page-header">
       <div class="page-header-title">
-        <div class="eyebrow">Monday, September 7, 2026</div>
+        <div class="eyebrow">${todayLabel}</div>
         <h1>Good morning, ${currentUser().name.split(' ')[0]}</h1>
         <p>Your digital office briefing for today.</p>
       </div>
@@ -1026,7 +1034,7 @@ function renderHome() {
       <div class="stat-box alert-yellow">
         <div class="stat-header">Tasks Due Today <span class="stat-icon-wrap">🟡</span></div>
         <div class="stat-value">${todayTasks.length}</div>
-        <div class="stat-meta"><span>In progress across 3 clients</span></div>
+        <div class="stat-meta"><span>Across ${todayClients} clients</span></div>
       </div>
       <div class="stat-box alert-blue">
         <div class="stat-header">Waiting for Review <span class="stat-icon-wrap">🔵</span></div>
@@ -1059,10 +1067,10 @@ function renderHome() {
                   </div>
                   <div class="task-body">
                     <div class="task-title-line">
-                      <span style="font-weight:700;">${t.title}</span>
+                      <span style="font-weight:700;">${memberHtml(t.title)}</span>
                     </div>
                     <div class="task-meta-line">
-                      <span style="color:var(--emerald);font-weight:600;">${c.name}</span>
+                      <span style="color:var(--emerald);font-weight:600;">${memberHtml(c.name)}</span>
                       <span>·</span>
                       <span>Assigned: ${t.assignedTo}</span>
                       <span>·</span>
@@ -1103,19 +1111,8 @@ function renderHome() {
             <div class="card-title">Today's Schedule</div>
             <button class="btn-ghost" data-navigate="calendar">Calendar →</button>
           </div>
-          <div style="display:flex; flex-direction:column; gap: 12px;">
-            <div style="padding: 10px; background: var(--cream); border-left: 3px solid var(--emerald); border-radius: 6px;">
-              <div style="font-weight:700; font-size:12px;">09:30 AM — ABC Audit Review Meeting</div>
-              <div style="font-size:11px; color:var(--ink-muted);">Rahul Mehta, Priya Nair, Rithvik Shah</div>
-            </div>
-            <div style="padding: 10px; background: var(--cream); border-left: 3px solid var(--yellow); border-radius: 6px;">
-              <div style="font-weight:700; font-size:12px;">11:00 AM — Review GST Reconciliation Draft</div>
-              <div style="font-size:11px; color:var(--ink-muted);">ABC Manufacturing Pvt Ltd</div>
-            </div>
-            <div style="padding: 10px; background: var(--cream); border-left: 3px solid var(--blue); border-radius: 6px;">
-              <div style="font-weight:700; font-size:12px;">14:00 PM — Team Sync &amp; Workload Distribution</div>
-              <div style="font-size:11px; color:var(--ink-muted);">Firm-wide meeting</div>
-            </div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            ${todayEvents.length ? todayEvents.map(e => `<div style="padding:10px;background:var(--cream);border-left:3px solid var(--emerald);border-radius:6px"><div style="font-weight:700;font-size:12px">${memberHtml(e.time ? `${e.time} — ${e.title}` : e.title)}</div><div style="font-size:11px;color:var(--ink-muted)">${memberHtml(e.details || '')}</div></div>`).join('') : '<div class="empty-state">No events scheduled today.</div>'}
           </div>
         </div>
 
@@ -1231,7 +1228,7 @@ function renderClients() {
           <div style="display:flex; align-items:center; gap: 12px; margin-bottom: 14px;">
             <div class="client-lg-logo" style="width:42px;height:42px;font-size:16px;background:${c.color}">${c.code}</div>
             <div>
-              <div style="font-weight:700; font-size:15px; color:var(--forest);">${c.name}</div>
+              <div style="font-weight:700; font-size:15px; color:var(--forest);">${memberHtml(c.name)}</div>
               <div style="font-size:11.5px; color:var(--ink-muted);">${c.industry} · ${c.contact}</div>
             </div>
           </div>
@@ -1263,7 +1260,7 @@ function renderClientDetail(clientId) {
       <div class="client-office-meta">
         <div class="client-lg-logo" style="background:${c.color}">${c.code}</div>
         <div class="client-office-info">
-          <h2>${c.name}</h2>
+          <h2>${memberHtml(c.name)}</h2>
           <div class="client-office-sub">
             <span>Primary Contact: <strong>${c.contact} (${c.email})</strong></span>
             <span>Manager: <strong>${c.manager}</strong></span>
@@ -1317,7 +1314,7 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
             <div style="border:1px solid var(--line); border-radius: var(--radius); padding: 18px; background:var(--surface-subtle);">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <h3 style="font-size:16px; font-weight:700; color:var(--forest);">${e.title}</h3>
+                  <h3 style="font-size:16px; font-weight:700; color:var(--forest);">${memberHtml(e.title)}</h3>
                   <div style="font-size:11.5px; color:var(--ink-muted); margin-top:2px;">
                     Manager: ${e.manager} · Senior: ${e.senior} · Associates: ${e.associates.join(', ')}
                   </div>
@@ -1362,7 +1359,7 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
             <tbody>
               ${docs.length === 0 ? '<tr><td colspan="6">No documents uploaded yet.</td></tr>' : docs.map(d => `
                 <tr>
-                  <td><strong>${d.name}</strong><br><small style="color:var(--ink-muted);">${d.size} · ${d.uploadDate}</small></td>
+                  <td><strong>${memberHtml(d.name)}</strong><br><small style="color:var(--ink-muted);">${memberHtml(d.size)} · ${memberHtml(d.uploadDate)}</small></td>
                   <td><span class="badge badge-gray">${d.category}</span></td>
                   <td>${d.uploadedBy}</td>
                   <td><strong>${d.version}</strong></td>
@@ -1385,7 +1382,7 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
     return `
       <div class="card">
         <div class="card-title-row">
-          <div class="card-title">${client.name} — Task Board</div>
+          <div class="card-title">${memberHtml(client.name)} — Task Board</div>
           <button class="btn-primary" data-action="new-task">＋ Add Task</button>
         </div>
         <div class="task-list">
@@ -1395,7 +1392,7 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
                 ${t.status === 'Completed' ? '✓' : ''}
               </div>
               <div class="task-body">
-                <div class="task-title-line">${t.title}</div>
+                <div class="task-title-line">${memberHtml(t.title)}</div>
                 <div class="task-meta-line">
                   <span>Assigned: ${t.assignedTo}</span> ·
                   <span>Reviewer: ${t.reviewer}</span> ·
@@ -1420,7 +1417,7 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
         ${reqs.map(r => `
           <div style="border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px; background:var(--cream);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-              <h4 style="font-size:14px; font-weight:700;">${r.title}</h4>
+              <h4 style="font-size:14px; font-weight:700;">${memberHtml(r.title)}</h4>
               ${renderBadge(r.status)}
             </div>
             <div style="font-size:11.5px; color:var(--ink-muted); margin: 4px 0 12px;">Due Date: ${r.dueDate}</div>
@@ -1449,7 +1446,7 @@ function renderClientSubTabContent(client, engagements, tasks, docs, reqs) {
           ${engagements.map(e => `
             <div style="padding:12px 0; border-bottom:1px solid var(--line-light);">
               <div style="display:flex; justify-content:space-between;">
-                <strong>${e.title}</strong>
+                <strong>${memberHtml(e.title)}</strong>
                 <span>${e.progress}%</span>
               </div>
               <div class="progress-bar-wrap">
@@ -1509,9 +1506,9 @@ function renderMyWork() {
                 ${t.status === 'Completed' ? '✓' : ''}
               </div>
               <div class="task-body">
-                <div class="task-title-line">${t.title}</div>
+                <div class="task-title-line">${memberHtml(t.title)}</div>
                 <div class="task-meta-line">
-                  <span>Client: <strong>${c.name}</strong></span> ·
+                  <span>Client: <strong>${memberHtml(c.name)}</strong></span> ·
                   <span>Priority: <strong>${t.priority}</strong></span> ·
                   <span>Due: <strong>${t.dueDate}</strong></span>
                 </div>
@@ -1527,6 +1524,7 @@ function renderMyWork() {
 
 // 6. DEADLINE CENTER & INTELLIGENCE
 function renderDeadlines() {
+  const taskType = t => t.category || t.workType || (/gst/i.test(t.title) ? 'GST' : /payroll|salary/i.test(t.title) ? 'Payroll' : /tax|tds|itr/i.test(t.title) ? 'Tax' : /audit/i.test(t.title) ? 'Audit' : 'Bookkeeping');
   return `
     <div class="page-header">
       <div class="page-header-title">
@@ -1541,11 +1539,11 @@ function renderDeadlines() {
       <span>Filter by:</span>
       <select class="filter-select" data-deadline-filter="client">
         <option value="">All Clients</option>
-        ${state.data.clients.map(c => `<option value="${c.id}" ${state.deadlineClient === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        ${state.data.clients.map(c => `<option value="${memberHtml(c.id)}" ${state.deadlineClient === c.id ? 'selected' : ''}>${memberHtml(c.name)}</option>`).join('')}
       </select>
       <select class="filter-select" data-deadline-filter="type">
         <option value="">All Work Types</option>
-        ${[...new Set(state.data.tasks.map(t => t.category || t.workType).filter(Boolean))].map(x => `<option ${state.deadlineType === x ? 'selected' : ''}>${x}</option>`).join('')}
+        ${[...new Set(state.data.tasks.map(taskType))].map(x => `<option ${state.deadlineType === x ? 'selected' : ''}>${x}</option>`).join('')}
       </select>
       <select class="filter-select" data-deadline-filter="priority">
         <option value="">All Priorities</option>
@@ -1558,13 +1556,13 @@ function renderDeadlines() {
         <div class="card-title">Pre-Deadline Stage Pipeline</div>
       </div>
       <div style="display:flex; flex-direction:column; gap: 16px;">
-        ${state.data.tasks.filter(t => (!state.deadlineClient || t.clientId === state.deadlineClient) && (!state.deadlineType || (t.category || t.workType) === state.deadlineType) && (!state.deadlinePriority || t.priority === state.deadlinePriority)).map(t => {
+        ${state.data.tasks.filter(t => (!state.deadlineClient || t.clientId === state.deadlineClient) && (!state.deadlineType || taskType(t) === state.deadlineType) && (!state.deadlinePriority || t.priority === state.deadlinePriority)).map(t => {
           const c = getClient(t.clientId);
           return `
             <div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:var(--surface-subtle);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <div>
-                  <strong>${t.title}</strong> — <span style="color:var(--emerald);">${c.name}</span>
+                  <strong>${memberHtml(t.title)}</strong> — <span style="color:var(--emerald);">${memberHtml(c.name)}</span>
                   <div style="font-size:11px; color:var(--ink-muted);">Deadline: ${t.dueDate}</div>
                 </div>
                 ${renderBadge(t.status)}
@@ -1602,7 +1600,7 @@ function renderCalendar() {
   for (let day = 1; day <= days; day++) {
     const dateKey = `${monthKey}-${String(day).padStart(2, '0')}`;
     const dayEvents = events.filter(e => e.date === dateKey);
-    dayCells.push(`<div style="min-height:64px;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--surface)"><div style="font-weight:700;font-size:11px">${day}</div>${dayEvents.map(e => `<div title="${e.title}" style="font-size:9px;color:var(--emerald);font-weight:700;overflow:hidden;text-overflow:ellipsis">${e.title}</div>`).join('')}</div>`);
+    dayCells.push(`<div style="min-height:64px;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--surface)"><div style="font-weight:700;font-size:11px">${day}</div>${dayEvents.map(e => `<div title="${memberHtml(e.title)}" style="font-size:9px;color:var(--emerald);font-weight:700;overflow:hidden;text-overflow:ellipsis">${memberHtml(e.title)}</div>`).join('')}</div>`);
   }
   const monthLabel = `${MONTH_NAMES[month]} ${year}`;
   const upcoming = [...events].sort((a, b) => a.date.localeCompare(b.date));
@@ -1633,7 +1631,7 @@ function renderCalendar() {
         <div class="card-title-row">
           <div class="card-title">Upcoming Firm Events</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">${upcoming.length ? upcoming.map(e => `<div style="padding:10px;border:1px solid var(--line);border-radius:6px"><strong>${shortDate(e.date)} — ${e.title}</strong><div style="font-size:11px;color:var(--ink-muted)">${e.details || `Created by ${e.createdBy || 'team member'}`}</div></div>`).join('') : '<div class="empty-state">No events scheduled this month. Add one to get started.</div>'}</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">${upcoming.length ? upcoming.map(e => `<div style="padding:10px;border:1px solid var(--line);border-radius:6px"><strong>${shortDate(e.date)} — ${memberHtml(e.title)}</strong><div style="font-size:11px;color:var(--ink-muted)">${memberHtml(e.details || `Created by ${e.createdBy || 'team member'}`)}</div></div>`).join('') : '<div class="empty-state">No events scheduled this month. Add one to get started.</div>'}</div>
       </div>
     </div>
   `;
@@ -1671,7 +1669,7 @@ function renderDocuments() {
           <tbody>
             ${state.data.documents.map(d => `
               <tr>
-                <td><strong>${d.name}</strong><br><small style="color:var(--ink-muted);">${d.size} · ${d.uploadDate}</small></td>
+                <td><strong>${memberHtml(d.name)}</strong><br><small style="color:var(--ink-muted);">${memberHtml(d.size)} · ${memberHtml(d.uploadDate)}</small></td>
                 <td><strong>${d.clientName}</strong></td>
                 <td>${d.engagementTitle}</td>
                 <td>${d.uploadedBy}</td>
@@ -2141,7 +2139,7 @@ function openDocumentModal() {
         <div class="form-group">
           <label>Client</label>
           <select id="form-client-select">
-            ${state.data.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+            ${state.data.clients.map(c => `<option value="${memberHtml(c.id)}">${memberHtml(c.name)}</option>`).join('')}
           </select>
         </div>
         <div class="form-group">
@@ -2251,7 +2249,7 @@ function renderReviews() {
         ${pendingReviews.length === 0 ? '<p>No items pending review right now.</p>' : pendingReviews.map(d => `
           <div style="border:1px solid var(--line); border-radius:8px; padding:16px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <h4 style="font-size:14px; font-weight:700;">${d.name}</h4>
+              <h4 style="font-size:14px; font-weight:700;">${memberHtml(d.name)}</h4>
               <div style="font-size:11.5px; color:var(--ink-muted); margin-top:3px;">
                 Client: <strong>${d.clientName}</strong> · Prepared by: <strong>${d.uploadedBy}</strong>
               </div>
@@ -2285,7 +2283,7 @@ function renderRequests() {
           <div style="border:1px solid var(--line); border-radius:8px; padding:18px; background:var(--surface-subtle);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
-                <h3 style="font-size:15px; font-weight:700; color:var(--forest);">${r.title}</h3>
+                <h3 style="font-size:15px; font-weight:700; color:var(--forest);">${memberHtml(r.title)}</h3>
                 <div style="font-size:11.5px; color:var(--ink-muted); margin-top:2px;">Client: <strong>${r.clientName}</strong> · Due: <strong>${r.dueDate}</strong></div>
               </div>
               ${renderBadge(r.status)}
@@ -2295,7 +2293,7 @@ function renderRequests() {
               ${r.items.map(item => `
                 <div style="display:flex; align-items:center; gap:8px; font-size:12.5px;">
                   <span>${item.done ? '✅' : '🔴'}</span>
-                  <span>${item.label}</span>
+                  <span>${memberHtml(item.label)}</span>
                 </div>
               `).join('')}
             </div>
@@ -2349,7 +2347,7 @@ function renderReports() {
   const activeEngagements = (state.data.engagements || []).filter(e => !['Completed', 'Closed', 'Archived'].includes(e.status));
   const avgProgress = activeEngagements.length ? Math.round(activeEngagements.reduce((sum, e) => sum + (Number(e.progress) || 0), 0) / activeEngagements.length) : 0;
   const pendingReviews = (state.data.documents || []).filter(d => d.status === 'Waiting for Review').length + (state.data.reviews || []).filter(r => ['Pending', 'Waiting for Review'].includes(r.status)).length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const overdueTasks = (state.data.tasks || []).filter(t => t.status !== 'Completed' && t.dueDate && t.dueDate < today).length;
 
   return `
@@ -2467,9 +2465,9 @@ function renderAnnouncements() {
       <div style="display:flex; flex-direction:column; gap:16px;">
         ${state.data.announcements.map(a => `
           <div style="border:1px solid var(--line); border-radius:8px; padding:16px; background:var(--surface-subtle);">
-            <h3 style="font-size:16px; font-weight:700; color:var(--forest);">${a.title}</h3>
+            <h3 style="font-size:16px; font-weight:700; color:var(--forest);">${memberHtml(a.title)}</h3>
             <div style="font-size:11px; color:var(--ink-muted); margin: 2px 0 8px;">Posted by ${a.author} on ${a.date}</div>
-            <p style="font-size:13px; color:var(--ink);">${a.content}</p>
+            <p style="font-size:13px; color:var(--ink);">${memberHtml(a.content)}</p>
           </div>
         `).join('')}
       </div>
@@ -2522,7 +2520,7 @@ function renderClientPortal() {
 
   return `
     <div class="client-portal-banner">
-      <h2>Welcome, ${client.name}</h2>
+      <h2>Welcome, ${memberHtml(client.name)}</h2>
       <p>Secure Portal — View document requests, upload files, and see upcoming deadlines.</p>
     </div>
 
@@ -2533,7 +2531,7 @@ function renderClientPortal() {
         </div>
         ${reqs.map(r => `
           <div style="border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:14px;">
-            <h4>${r.title}</h4>
+            <h4>${memberHtml(r.title)}</h4>
             <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
               ${r.items.map(item => `
                 <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
@@ -2863,7 +2861,7 @@ function renderSearch() {
             <div class="search-group-label">${type} (${groups[type].length})</div>
             ${groups[type].map(r => `
               <div class="search-hit" data-action="search-hit" data-view-target="${r.view}" data-client-target="${r.payload || ''}">
-                <div class="search-hit-title">${r.title}</div>
+                <div class="search-hit-title">${memberHtml(r.title)}</div>
                 <div class="search-hit-meta">${r.meta}</div>
               </div>
             `).join('')}
@@ -2965,7 +2963,7 @@ function renderWorkspace() {
         <div class="workspace-option" data-action="workspace-pick" data-workspace="${c.id}">
           <div class="brand-preview-icon" style="background:${c.color};font-size:18px;width:40px;height:40px;">${c.code}</div>
           <div class="task-body">
-            <div class="task-title-line">${c.name}</div>
+            <div class="task-title-line">${memberHtml(c.name)}</div>
             <div class="task-meta-line">${c.industry} · ${c.manager} · ${c.docsCount} documents</div>
           </div>
           <div class="notif-chevron">›</div>
@@ -3226,6 +3224,13 @@ function parseMonthKey(mk) {
   const [y, m] = mk.split('-').map(Number);
   return { year: y, month: m };
 }
+function quarterMonths(endPeriod) {
+  const { year, month } = parseMonthKey(endPeriod);
+  return [2, 1, 0].map(offset => {
+    const date = new Date(year, month - 1 - offset, 1);
+    return monthKeyKey(date.getFullYear(), date.getMonth() + 1);
+  });
+}
 
 // The due date is `dayOfNextMonth` days into the month AFTER the period.
 function dueDateForPeriod(periodKey, dayOfNextMonth) {
@@ -3244,9 +3249,8 @@ function tdsDepositDue(periodKey) {
 // Fixed-date obligations for the active financial year.
 const ADVANCE_TAX_DATES = taxDatesForCurrentFY();
 
-// ITC is claimable only for lines that actually reconciled. A line missing from
-// 2B was never on the portal; one missing from the register was never booked;
-// an unresolved variance has not been accepted. None of those may claim credit.
+// This is a matched-credit estimate only. Statutory ITC eligibility also needs
+// receipt, invoice, payment, blocked-credit, and time-limit checks.
 function eligibleItc(monthKeyStr, clientId) {
   const gr = state.data.gstRecons.find(g => g.month === monthKeyStr && (!clientId || g.clientId === clientId));
   if (!gr) return 0;
@@ -3352,13 +3356,14 @@ function generateObligations(from, to) {
       if (client.gstinRegistered === false) continue;
       const quarterly = client.gstFilingFrequency === 'quarterly';
       if (quarterly && ![3, 6, 9, 12].includes(parseMonthKey(period).month)) continue;
-      const outputTax = outputTaxFor(period, client.id);
-      const itc = eligibleItc(period, client.id);
+      const gstPeriods = quarterly ? quarterMonths(period) : [period];
+      const outputTax = gstPeriods.reduce((sum, periodKey) => sum + outputTaxFor(periodKey, client.id), 0);
+      const itc = gstPeriods.reduce((sum, periodKey) => sum + eligibleItc(periodKey, client.id), 0);
       const gstr1Due = dueDateForPeriod(period, quarterly ? 13 : 11);
       const gstr3bDue = dueDateForPeriod(period, quarterly ? (Number(client.gstStateGroup) === 2 ? 24 : 22) : 20);
-      const filingPeriod = quarterly ? `${period} quarter` : periodLabel(period);
+      const filingPeriod = quarterly ? `${periodLabel(gstPeriods[0])} – ${periodLabel(period)}` : periodLabel(period);
       if (gstr1Due >= from && gstr1Due <= to) out.push({ id: `gstr-1-${client.id}-${period}`, kind: 'Statutory', title: `GSTR-1 — ${client.name}`, category: 'GST', dueDate: gstr1Due, period, clientId: client.id, amount: 0, detail: `${quarterly ? 'Quarterly' : 'Monthly'} outward supplies for ${filingPeriod}. Base due date estimate; verify portal notices and any extensions.`, derived: true });
-      if (gstr3bDue >= from && gstr3bDue <= to) out.push({ id: `gstr-3b-${client.id}-${period}`, kind: 'Statutory', title: `GSTR-3B — ${client.name}`, category: 'GST', dueDate: gstr3bDue, period, clientId: client.id, amount: Math.max(0, outputTax - itc), detail: `Output tax ${inr(outputTax)} less matched ITC ${inr(itc)} for ${filingPeriod}. Due date is an estimate; confirm the client's return frequency, state group and GST portal schedule.`, derived: true });
+      if (gstr3bDue >= from && gstr3bDue <= to) out.push({ id: `gstr-3b-${client.id}-${period}`, kind: 'Statutory', title: `GSTR-3B — ${client.name}`, category: 'GST', dueDate: gstr3bDue, period, clientId: client.id, amount: Math.max(0, outputTax - itc), detail: `Output tax ${inr(outputTax)} less matched ITC estimate ${inr(itc)} for ${filingPeriod}. Validate invoice receipt, blocked credits, time limits and portal status before claiming. Due date is an estimate; confirm the client's return frequency, state group and any extensions.`, derived: true });
     }
   }
 
@@ -3483,7 +3488,7 @@ function canApprovePayment(p) {
 }
 
 function renderPayments() {
-  const month = new Date().toISOString().slice(0, 7);
+  const month = localDateKey().slice(0, 7);
   const from = state.payFrom || `${month}-01`;
   const to = state.payTo || `${month}-${String(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
   const account = (state.data.bankAccounts || [])[0] || { balance: 0, name: 'No account', asOf: '-' };
@@ -4704,9 +4709,9 @@ function openCreateModal(type) {
   const root = document.getElementById('modal-root');
   const clients = state.data.clients || [];
   const members = state.data.users || [];
-  const today = new Date().toISOString().slice(0, 10);
-  const clientOptions = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  const memberOptions = members.map(u => `<option value="${u.name}">${u.name} (${u.role})</option>`).join('');
+  const today = localDateKey();
+  const clientOptions = clients.map(c => `<option value="${memberHtml(c.id)}">${memberHtml(c.name)}</option>`).join('');
+  const memberOptions = members.map(u => `<option value="${memberHtml(u.name)}">${memberHtml(u.name)} (${memberHtml(u.role)})</option>`).join('');
   const label = type.replace(/\b\w/g, c => c.toUpperCase());
   const specificFields = type === 'task' ? `
     <div class="form-group"><label>Client</label><select required id="form-client-select">${clientOptions}</select></div>
@@ -4714,7 +4719,7 @@ function openCreateModal(type) {
     <div class="form-group"><label>Reviewer</label><select id="form-reviewer-select"><option value="">Unassigned</option>${memberOptions}</select></div>
     <div class="form-group"><label>Due date</label><input required id="form-date-input" type="date" value="${today}" /></div>
     <div class="form-group"><label>Priority</label><select id="form-priority-select"><option>Medium</option><option>High</option><option>Low</option></select></div>
-    <div class="form-group"><label>Engagement</label><select id="form-engagement-select"><option value="">No engagement</option>${(state.data.engagements || []).map(e => `<option value="${e.id}">${e.title}</option>`).join('')}</select></div>` : '';
+    <div class="form-group"><label>Engagement</label><select id="form-engagement-select"><option value="">No engagement</option>${(state.data.engagements || []).map(e => `<option value="${memberHtml(e.id)}">${memberHtml(e.title)}</option>`).join('')}</select></div>` : '';
   const clientField = ['client request'].includes(type) ? `<div class="form-group"><label>Client</label><select required id="form-client-select">${clientOptions}</select></div>` : '';
   const dateField = type === 'calendar event' ? `<div class="form-group"><label>Date</label><input required id="form-date-input" type="date" value="${today}" /></div><div class="form-group"><label>Time / details</label><input id="form-details-input" placeholder="Optional time or location" /></div>` : '';
   const dueField = type === 'client request' ? `<div class="form-group"><label>Due date</label><input required id="form-date-input" type="date" value="${today}" /></div><div class="form-group"><label>Requested items (one per line)</label><textarea id="form-details-input" rows="4" placeholder="Bank statement\nPurchase register"></textarea></div>` : '';
@@ -4747,6 +4752,17 @@ function openCreateModal(type) {
   `;
 
   root.classList.add('open');
+
+  const clientSelect = document.getElementById('form-client-select');
+  const engagementSelect = document.getElementById('form-engagement-select');
+  if (type === 'task' && clientSelect && engagementSelect) {
+    const updateEngagements = () => {
+      const matching = (state.data.engagements || []).filter(e => e.clientId === clientSelect.value);
+      engagementSelect.innerHTML = `<option value="">No engagement</option>${matching.map(e => `<option value="${memberHtml(e.id)}">${memberHtml(e.title)}</option>`).join('')}`;
+    };
+    clientSelect.addEventListener('change', updateEngagements);
+    updateEngagements();
+  }
 
   document.getElementById('close-modal').onclick = () => root.classList.remove('open');
   document.getElementById('creator-form').onsubmit = (e) => {

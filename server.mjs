@@ -12,7 +12,7 @@ const VAULT_DIR = path.join(ROOT, 'documents', 'vault');
 const PORT = Number(process.env.PORT || 4173);
 const MAX_BODY = 12 * 1024 * 1024;
 const MAX_UPLOAD = 8 * 1024 * 1024;
-const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns', 'bankAccounts', 'advanceTaxPayments']);
+const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'auditLogs', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns', 'bankAccounts', 'advanceTaxPayments']);
 const MEMBER_ROLES = new Set(['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee']);
 
 await mkdir(DATA_DIR, { recursive: true });
