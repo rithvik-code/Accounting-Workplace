@@ -295,6 +295,7 @@ async function api(req, res, url) {
   }
   if (url.pathname === '/api/ledger/accounts' && req.method === 'POST') {
     const input = await body(req);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return send(res, 400, { error: 'Account must be a JSON object.' });
     const code = String(input.code || '').trim();
     const name = String(input.name || '').trim();
     const type = String(input.type || '');
@@ -316,6 +317,7 @@ async function api(req, res, url) {
     const index = accounts.findIndex(row => String(row.id) === id);
     if (index < 0) return send(res, 404, { error: 'Account not found.' });
     const input = await body(req);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return send(res, 400, { error: 'Account update must be a JSON object.' });
     if (typeof input.active !== 'boolean' || Object.keys(input).some(key => key !== 'active')) return send(res, 400, { error: 'Only the active status can be changed here.' });
     if (!input.active && (Array.isArray(workspace.journalEntries) ? workspace.journalEntries : []).some(entry => (entry.lines || []).some(line => String(line.accountId) === id))) return send(res, 409, { error: 'An account used in a posted journal cannot be archived.' });
     accounts[index] = { ...accounts[index], active: input.active, updatedAt: new Date().toISOString() };
@@ -328,6 +330,7 @@ async function api(req, res, url) {
   }
   if (url.pathname === '/api/ledger/journals' && req.method === 'POST') {
     const input = await body(req);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return send(res, 400, { error: 'Journal must be a JSON object.' });
     const date = String(input.date || '');
     const memo = String(input.memo || '').trim();
     const actor = String(input.recordedBy || '').trim().slice(0, 100);
@@ -340,14 +343,15 @@ async function api(req, res, url) {
     let debitCents = 0;
     let creditCents = 0;
     for (const line of input.lines) {
+      if (!line || typeof line !== 'object' || Array.isArray(line)) return send(res, 400, { error: 'Each journal line must be an object.' });
       const account = accounts.find(row => String(row.id) === String(line.accountId) && row.active !== false);
       if (!account) return send(res, 400, { error: 'Every line must use an active account in the chart.' });
       const debit = Number(line.debit || 0);
       const credit = Number(line.credit || 0);
       if (!Number.isFinite(debit) || !Number.isFinite(credit) || debit < 0 || credit < 0 || (debit > 0 && credit > 0) || (debit === 0 && credit === 0)) return send(res, 400, { error: 'Each line must have a positive debit or a positive credit, never both.' });
       if (debit > 1e12 || credit > 1e12) return send(res, 400, { error: 'Journal line amount is too large.' });
-      const debitValue = Math.round(debit * 100) / 100;
-      const creditValue = Math.round(credit * 100) / 100;
+      const debitValue = Math.round((debit + Number.EPSILON) * 100) / 100;
+      const creditValue = Math.round((credit + Number.EPSILON) * 100) / 100;
       debitCents += Math.round(debitValue * 100);
       creditCents += Math.round(creditValue * 100);
       lines.push({ accountId: account.id, accountCode: account.code, accountName: account.name, debit: debitValue, credit: creditValue, note: String(line.note || '').trim().slice(0, 160) });
@@ -473,7 +477,7 @@ const server = http.createServer(async (req, res) => {
     try { contents = await readFile(full); } catch { res.writeHead(404); return res.end('Not found'); }
     const ext = path.extname(full).toLowerCase();
     const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
-    res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': ext === '.html' ? 'no-store' : 'public, max-age=300' });
+    res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': ['.html', '.js'].includes(ext) ? 'no-store' : 'public, max-age=300' });
     if (ext === '.html') {
       let html = contents.toString('utf8');
       html = html.replace(/<script\s+src=["']app\.js["']\s*><\/script>/i, `<script>${bridge}</script><script src="app.js"></script>`);

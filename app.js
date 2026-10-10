@@ -510,6 +510,8 @@ class AppState {
   constructor() {
     this.data = this.loadFromStorage();
     this.data.firmTaxProfile = { ...seedData.firmTaxProfile, ...(this.data.firmTaxProfile || {}) };
+    if (!Array.isArray(this.data.chartOfAccounts)) this.data.chartOfAccounts = [];
+    if (!Array.isArray(this.data.journalEntries)) this.data.journalEntries = [];
     this.currentView = 'home';
     this.activeRole = 'Partner';
     this.appMode = 'firm'; // 'firm' or 'portal'
@@ -3029,7 +3031,7 @@ function renderLedger() {
   const activeAccounts = accounts.filter(account => account.active !== false);
   const tabs = [['journal', 'Journal'], ['accounts', 'Chart of accounts'], ['trial-balance', 'Trial balance'], ['profit-loss', 'Profit & loss'], ['balance-sheet', 'Balance sheet']];
   const tab = state.ledgerTab || 'journal';
-  const options = activeAccounts.map(account => `<option value="${ledgerEscape(account.id)}">${ledgerEscape(account.code)} · ${ledgerEscape(account.name)} (${ledgerEscape(account.type)})</option>`).join('');
+  const options = selectedId => activeAccounts.map(account => `<option value="${ledgerEscape(account.id)}" ${String(selectedId) === String(account.id) ? 'selected' : ''}>${ledgerEscape(account.code)} · ${ledgerEscape(account.name)} (${ledgerEscape(account.type)})</option>`).join('');
   let content = '';
 
   if (tab === 'journal') {
@@ -3043,7 +3045,7 @@ function renderLedger() {
           <div class="ledger-form-meta"><label>Entry date<input name="date" type="date" required value="${ledgerEscape(state.journalDraftDate || new Date().toISOString().slice(0, 10))}" data-ledger-draft="date"></label><label>Description<input name="memo" maxlength="240" required placeholder="e.g. Record monthly office rent" value="${ledgerEscape(state.journalDraftMemo || '')}" data-ledger-draft="memo"></label></div>
           <div class="ledger-lines-head"><span>Account</span><span>Line description</span><span>Debit (₹)</span><span>Credit (₹)</span><span></span></div>
           <div class="ledger-lines">${state.journalDraft.map((line, index) => `<div class="ledger-line" data-ledger-line="${index}">
-            <select aria-label="Account for line ${index + 1}" required data-ledger-line-field="accountId" data-line-index="${index}"><option value="">Choose account…</option>${options}</select>
+            <select aria-label="Account for line ${index + 1}" required data-ledger-line-field="accountId" data-line-index="${index}"><option value="">Choose account…</option>${options(line.accountId)}</select>
             <input aria-label="Description for line ${index + 1}" maxlength="160" placeholder="Optional" value="${ledgerEscape(line.note)}" data-ledger-line-field="note" data-line-index="${index}">
             <input aria-label="Debit for line ${index + 1}" type="number" min="0" step="0.01" placeholder="0.00" value="${ledgerEscape(line.debit)}" data-ledger-line-field="debit" data-line-index="${index}">
             <input aria-label="Credit for line ${index + 1}" type="number" min="0" step="0.01" placeholder="0.00" value="${ledgerEscape(line.credit)}" data-ledger-line-field="credit" data-line-index="${index}">
@@ -3064,7 +3066,8 @@ function renderLedger() {
       ${ledgerTableRows(accounts.map(account => `<tr><td><b>${ledgerEscape(account.code)}</b></td><td>${ledgerEscape(account.name)}</td><td>${ledgerTypeBadge(account.type)}</td><td>${account.active === false ? '<span class="ledger-inactive">Archived</span>' : '<span class="ledger-active">Active</span>'}</td><td>${can('ledger.manage') && !((state.data.journalEntries || []).some(entry => entry.lines.some(line => String(line.accountId) === String(account.id)))) ? `<button class="ledger-text-action" data-action="ledger-account-toggle" data-account-id="${ledgerEscape(account.id)}" data-next-active="${account.active === false ? 'true' : 'false'}">${account.active === false ? 'Restore' : 'Archive'}</button>` : ''}</td></tr>`, 'Start with account codes that match your bookkeeping setup.', ['Code', 'Account name', 'Category', 'Status', '']))}</div>`;
   } else {
     const totals = ledgerTotals(ledgerEntriesThrough());
-    const dateControls = `<div class="ledger-date-range"><label>From<input type="date" value="${ledgerEscape(state.ledgerStartDate)}" data-ledger-date="start"></label><label>Through<input type="date" value="${ledgerEscape(state.ledgerEndDate)}" data-ledger-date="end"></label></div>`;
+    const periodControls = `<div class="ledger-date-range"><label>From<input type="date" value="${ledgerEscape(state.ledgerStartDate)}" data-ledger-date="start"></label><label>Through<input type="date" value="${ledgerEscape(state.ledgerEndDate)}" data-ledger-date="end"></label></div>`;
+    const asOfControl = `<div class="ledger-date-range"><label>Through<input type="date" value="${ledgerEscape(state.ledgerEndDate)}" data-ledger-date="end"></label></div>`;
     if (tab === 'trial-balance') {
       const rows = accounts.filter(account => account.active !== false).map(account => {
         const total = totals.get(String(account.id)) || { debit: 0, credit: 0 };
@@ -3075,7 +3078,7 @@ function renderLedger() {
       const sums = [...totals.values()].reduce((sum, t) => sum + t.debit - t.credit, 0);
       const dr = [...totals.values()].reduce((sum, t) => sum + Math.max(0, t.debit - t.credit), 0);
       const cr = [...totals.values()].reduce((sum, t) => sum + Math.max(0, t.credit - t.debit), 0);
-      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Trial balance</h2><p>Closing account balances from all posted entries through the selected date.</p></div>${dateControls}</div>${ledgerTableRows(rows, 'No account balances yet. Post balanced journals to populate the trial balance.', ['Code', 'Account name', 'Category', 'Debit', 'Credit'])}<div class="ledger-report-total"><span>Totals as of ${ledgerEscape(state.ledgerEndDate)}</span><b>${inr(dr)}</b><b>${inr(cr)}</b></div><div class="ledger-reconcile ${Math.abs(sums) < 0.005 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(sums) < 0.005 ? '✓ Debits and credits agree' : `⚠ Out of balance by ${inr(sums)}`} · Reports include posted entries only.</div></div>`;
+      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Trial balance</h2><p>Closing account balances from all posted entries through the selected date.</p></div>${asOfControl}</div>${ledgerTableRows(rows, 'No account balances yet. Post balanced journals to populate the trial balance.', ['Code', 'Account name', 'Category', 'Debit', 'Credit'])}<div class="ledger-report-total"><span>Totals as of ${ledgerEscape(state.ledgerEndDate)}</span><b>${inr(dr)}</b><b>${inr(cr)}</b></div><div class="ledger-reconcile ${Math.abs(sums) < 0.005 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(sums) < 0.005 ? '✓ Debits and credits agree' : `⚠ Out of balance by ${inr(sums)}`} · Reports include posted entries only.</div></div>`;
     } else if (tab === 'profit-loss') {
       const rangeEntries = ledgerEntriesThrough().filter(entry => entry.date >= state.ledgerStartDate);
       const rangeTotals = ledgerTotals(rangeEntries);
@@ -3084,7 +3087,7 @@ function renderLedger() {
       const income = incomeRows.reduce((sum, row) => sum + row.amount, 0);
       const expense = expenseRows.reduce((sum, row) => sum + row.amount, 0);
       const accountRows = group => group.map(({ account, amount }) => `<tr><td><b>${ledgerEscape(account.code)}</b></td><td>${ledgerEscape(account.name)}</td><td class="ledger-number">${inr(amount)}</td></tr>`);
-      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Profit &amp; loss</h2><p>Income less expenses for the selected date range.</p></div>${dateControls}</div><h3 class="ledger-section-title">Income</h3>${ledgerTableRows(accountRows(incomeRows), 'No income posted in this period.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total income</span><b>${inr(income)}</b></div><h3 class="ledger-section-title">Expenses</h3>${ledgerTableRows(accountRows(expenseRows), 'No expenses posted in this period.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total expenses</span><b>${inr(expense)}</b></div><div class="ledger-net-result"><span>Net ${income - expense >= 0 ? 'profit' : 'loss'}</span><b>${inr(income - expense)}</b></div></div>`;
+      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Profit &amp; loss</h2><p>Income less expenses for the selected date range.</p></div>${periodControls}</div><h3 class="ledger-section-title">Income</h3>${ledgerTableRows(accountRows(incomeRows), 'No income posted in this period.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total income</span><b>${inr(income)}</b></div><h3 class="ledger-section-title">Expenses</h3>${ledgerTableRows(accountRows(expenseRows), 'No expenses posted in this period.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total expenses</span><b>${inr(expense)}</b></div><div class="ledger-net-result"><span>Net ${income - expense >= 0 ? 'profit' : 'loss'}</span><b>${inr(income - expense)}</b></div></div>`;
     } else {
       const cumulative = ledgerTotals(ledgerEntriesThrough());
       const balanceRows = type => accounts.filter(account => account.type === type && account.active !== false).map(account => {
@@ -3097,13 +3100,13 @@ function renderLedger() {
       const equity = balanceRows('Equity');
       const currentEarnings = accounts.filter(account => ['Income', 'Expense'].includes(account.type)).reduce((sum, account) => {
         const total = cumulative.get(String(account.id)) || { debit: 0, credit: 0 };
-        return sum + (account.type === 'Income' ? total.credit - total.debit : total.credit - total.debit);
+        return sum + total.credit - total.debit;
       }, 0);
       const totalAssets = assets.reduce((sum, row) => sum + row.amount, 0);
       const totalLiabilities = liabilities.reduce((sum, row) => sum + row.amount, 0);
       const totalEquity = equity.reduce((sum, row) => sum + row.amount, 0) + currentEarnings;
       const difference = totalAssets - totalLiabilities - totalEquity;
-      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Balance sheet</h2><p>Account balances through the selected date. Current earnings are included in equity.</p></div>${dateControls}</div><h3 class="ledger-section-title">Assets</h3>${ledgerTableRows(rowsFor(assets), 'No asset balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total assets</span><b>${inr(totalAssets)}</b></div><h3 class="ledger-section-title">Liabilities</h3>${ledgerTableRows(rowsFor(liabilities), 'No liability balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total liabilities</span><b>${inr(totalLiabilities)}</b></div><h3 class="ledger-section-title">Equity</h3>${ledgerTableRows(rowsFor(equity), 'No equity balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Current earnings</span><b>${inr(currentEarnings)}</b></div><div class="ledger-report-subtotal"><span>Total equity</span><b>${inr(totalEquity)}</b></div><div class="ledger-net-result"><span>Liabilities + equity</span><b>${inr(totalLiabilities + totalEquity)}</b></div><div class="ledger-reconcile ${Math.abs(difference) < 0.005 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(difference) < 0.005 ? '✓ Balance sheet balances' : `⚠ Assets differ from liabilities and equity by ${inr(difference)}`} · Verify account mapping and opening entries.</div></div>`;
+      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Balance sheet</h2><p>Account balances through the selected date. Current earnings are included in equity.</p></div>${asOfControl}</div><h3 class="ledger-section-title">Assets</h3>${ledgerTableRows(rowsFor(assets), 'No asset balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total assets</span><b>${inr(totalAssets)}</b></div><h3 class="ledger-section-title">Liabilities</h3>${ledgerTableRows(rowsFor(liabilities), 'No liability balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total liabilities</span><b>${inr(totalLiabilities)}</b></div><h3 class="ledger-section-title">Equity</h3>${ledgerTableRows(rowsFor(equity), 'No equity balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Current earnings</span><b>${inr(currentEarnings)}</b></div><div class="ledger-report-subtotal"><span>Total equity</span><b>${inr(totalEquity)}</b></div><div class="ledger-net-result"><span>Liabilities + equity</span><b>${inr(totalLiabilities + totalEquity)}</b></div><div class="ledger-reconcile ${Math.abs(difference) < 0.005 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(difference) < 0.005 ? '✓ Balance sheet balances' : `⚠ Assets differ from liabilities and equity by ${inr(difference)}`} · Verify account mapping and opening entries.</div></div>`;
     }
   }
   return `<div class="page-header"><div><div class="page-eyebrow">ACCOUNTING</div><h1>General ledger</h1><p>Build your accounts, record balanced journals, and see statements from the entries you post.</p></div><div class="ledger-posting-note">Posted journals are permanent and dated entries update the reports automatically.</div></div><div class="ledger-tabs" role="tablist">${tabs.map(([key, label]) => `<button role="tab" aria-selected="${tab === key}" class="ledger-tab ${tab === key ? 'active' : ''}" data-action="ledger-tab" data-tab="${key}">${label}</button>`).join('')}</div>${content}<p class="ledger-disclaimer">This is a bookkeeping workspace. Confirm account classification, opening balances, and statutory treatment with your accountant before relying on external statements.</p>`;
