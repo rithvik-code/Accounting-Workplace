@@ -1982,7 +1982,7 @@ function openDocViewer(docId) {
     toast('That document is no longer in the store.');
     return;
   }
-  const text = docText(d);
+  const text = d.source === 'upload' && d.vaultPath ? 'Original file is safely stored in the firm vault. Use “Save a copy” to download the original file.' : docText(d);
   const root = document.getElementById('modal-root');
   const figures = docKeyFigures(d);
   const lines = text.split('\n').length;
@@ -2019,6 +2019,10 @@ function docVaultName(d) {
   return `${d.id}_${stamp}_${d.name}`.replace(/[\\/]+/g, '_');
 }
 function downloadDoc(d) {
+  if (d.source === 'upload' && d.vaultPath) {
+    const link = document.createElement('a'); link.href = d.vaultPath; link.download = d.name; document.body.appendChild(link); link.click(); link.remove();
+    state.addAuditLog(currentUser().name, 'Downloaded Document', d.name); state.save(); return;
+  }
   const text = docText(d);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -2037,6 +2041,7 @@ function downloadDoc(d) {
 // dev server. When that endpoint is absent — the app opened straight off the
 // filesystem — it degrades to a download rather than failing silently.
 function saveDocToVault(d) {
+  if (d.source === 'upload' && d.vaultPath) { toast(`Original file is already stored in the firm vault.`); return; }
   const text = docText(d);
   const payload = { name: docVaultName(d), content: text };
   let settled = false;
@@ -2077,8 +2082,7 @@ function fmtBytes(n) {
   if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
   return (v / 1048576).toFixed(1) + ' MB';
 }
-// Uploading reads the file off disk and keeps its text, so the document that
-// was uploaded is the document that opens, saves and downloads.
+// Read the original bytes so PDFs, spreadsheets, images, and other files are preserved.
 function onDocFilePicked(input) {
   const note = document.getElementById('doc-file-note');
   const title = document.getElementById('form-title-input');
@@ -2088,24 +2092,23 @@ function onDocFilePicked(input) {
     return;
   }
   if (note) note.textContent = `Reading ${file.name} (${fmtBytes(file.size)})…`;
+  if (file.size > 8 * 1024 * 1024) {
+    input.value = '';
+    if (note) note.textContent = 'Files must be 8 MB or smaller.';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
-    const raw = String(reader.result || '');
-    let content = raw;
-    let truncated = false;
-    if (raw.length > MAX_STORED_TEXT) {
-      content = raw.slice(0, MAX_STORED_TEXT);
-      truncated = true;
-    }
-    input.dataset.docContent = content;
+    const bytes = new Uint8Array(reader.result);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    input.dataset.docBase64 = btoa(binary);
     input.dataset.docSize = String(file.size);
     input.dataset.docName = file.name;
     input.dataset.docType = file.type || '';
     if (title && !title.value.trim()) title.value = file.name;
     if (note) {
-      note.textContent = truncated
-        ? `${file.name} is ${fmtBytes(file.size)}; the first ${fmtBytes(MAX_STORED_TEXT)} of text is stored and the rest is dropped.`
-        : `${file.name} · ${fmtBytes(file.size)} will be stored as the document's content.`;
+      note.textContent = `${file.name} · ${fmtBytes(file.size)} original file will be stored in the firm vault.`;
     }
   };
   reader.onerror = () => {
@@ -2167,8 +2170,8 @@ function openDocumentModal() {
     const clientId = document.getElementById('form-client-select').value;
     const category = document.getElementById('form-category-select').value;
     const client = getClient(clientId);
-    const content = fileInput.dataset.docContent || '';
-    const uploaded = !!content;
+    const base64 = fileInput.dataset.docBase64 || '';
+    const uploaded = !!base64;
     const doc = {
       id: 'd_' + Date.now(),
       name: uploaded ? (fileInput.dataset.docName || title) : title,
@@ -2185,16 +2188,20 @@ function openDocumentModal() {
       source: uploaded ? 'upload' : 'generated',
       comments: []
     };
-    // An uploaded document carries its own bytes; a generated one has no
-    // content field, so docText() synthesises a body from its category.
-    if (uploaded) doc.content = content;
-    state.data.documents.unshift(doc);
-    state.addAuditLog(currentUser().name, 'Uploaded Document', doc.name);
-    state.save();
-    root.classList.remove('open');
-    toast(`Uploaded "${doc.name}" to ${client.name}`);
-    navigateTo(state.currentView);
-    openDocViewer(doc.id);
+    const persistDocument = async () => {
+      try {
+        if (uploaded) {
+          const response = await fetch(VAULT_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: doc.name, base64, type: fileInput.dataset.docType || 'application/octet-stream' }) });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Vault upload failed.');
+          doc.vaultPath = result.path; doc.vaultId = result.id; doc.size = fmtBytes(result.size);
+        }
+        state.data.documents.unshift(doc);
+        state.addAuditLog(currentUser().name, 'Uploaded Document', doc.name);
+        state.save(); root.classList.remove('open'); toast(`Uploaded "${doc.name}" to ${client.name}`); navigateTo(state.currentView); openDocViewer(doc.id);
+      } catch (error) { toast(`Could not save document · ${error.message}`); }
+    };
+    persistDocument();
   };
 }
 // 9. REVIEWS & APPROVAL WORKFLOW
@@ -2339,6 +2346,13 @@ function renderReports() {
     ? `<span class="mono">${inr(v)}</span>`
     : `<span class="field-redacted" title="Firm financials require Partner or Manager access">••••••</span>`;
 
+  const activeClients = (state.data.clients || []).filter(c => !['Inactive', 'Archived'].includes(c.status)).length;
+  const activeEngagements = (state.data.engagements || []).filter(e => !['Completed', 'Closed', 'Archived'].includes(e.status));
+  const avgProgress = activeEngagements.length ? Math.round(activeEngagements.reduce((sum, e) => sum + (Number(e.progress) || 0), 0) / activeEngagements.length) : 0;
+  const pendingReviews = (state.data.documents || []).filter(d => d.status === 'Waiting for Review').length + (state.data.reviews || []).filter(r => ['Pending', 'Waiting for Review'].includes(r.status)).length;
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueTasks = (state.data.tasks || []).filter(t => t.status !== 'Completed' && t.dueDate && t.dueDate < today).length;
+
   return `
     <div class="page-header">
       <div class="page-header-title">
@@ -2352,21 +2366,21 @@ function renderReports() {
       <div class="stat-box">
         <div class="stat-header">Active Clients</div>
         <div class="stat-value">${state.data.clients.length}</div>
-        <div class="stat-meta">Across 5 industries</div>
+        <div class="stat-meta">${new Set(state.data.clients.map(c => c.industry).filter(Boolean)).size} industries</div>
       </div>
       <div class="stat-box">
         <div class="stat-header">Active Engagements</div>
-        <div class="stat-value">${state.data.engagements.length}</div>
-        <div class="stat-meta">78% avg completion</div>
+        <div class="stat-value">${activeEngagements.length}</div>
+        <div class="stat-meta">${avgProgress}% average progress</div>
       </div>
       <div class="stat-box alert-yellow">
         <div class="stat-header">Pending Reviews</div>
-        <div class="stat-value">3</div>
+        <div class="stat-value">${pendingReviews}</div>
         <div class="stat-meta">Quality sign-off queue</div>
       </div>
       <div class="stat-box alert-red">
         <div class="stat-header">Overdue Tasks</div>
-        <div class="stat-value">2</div>
+        <div class="stat-value">${overdueTasks}</div>
         <div class="stat-meta">Action required</div>
       </div>
     </div>
@@ -2968,46 +2982,50 @@ function reconcileGst(gr) {
   const abs = Number(gr.toleranceAbs) || 0;
   const pct = Number(gr.tolerancePct) || 0;
   const results = [];
-
-  const bByKey = new Map();
-  gr.portal2b.forEach(b => {
-    const k = reconKey(b);
-    if (!bByKey.has(k)) bByKey.set(k, b);
+  const invoiceKey = row => `${String(row.gstin || '').replace(/\s/g, '').toUpperCase()}|${String(row.invoiceNo || '').trim().replace(/\s+/g, '').toUpperCase()}`;
+  const portalQueues = new Map();
+  (gr.portal2b || []).forEach((row, index) => {
+    const key = invoiceKey(row);
+    if (!portalQueues.has(key)) portalQueues.set(key, []);
+    portalQueues.get(key).push({ row, index });
   });
-
-  const matchedB = new Set();
-
-  gr.purchaseRegister.forEach(pr => {
-    const k = reconKey(pr);
-    const b = bByKey.get(k);
+  const usedPortal = new Set();
+  const counts = new Map();
+  (gr.purchaseRegister || []).forEach((pr, index) => {
+    const key = invoiceKey(pr);
+    const occurrence = counts.get(key) || 0;
+    counts.set(key, occurrence + 1);
+    const rowKey = `${key}|purchase-${index}`;
+    const match = (portalQueues.get(key) || []).find(item => !usedPortal.has(item.index));
+    const b = match?.row;
     if (!b) {
       results.push({
-        key: k, status: 'Missing in 2B', pr, portal: null, variance: pr.total,
-        allowed: abs + (pr.total * pct) / 100
+        key: rowKey, status: 'Missing in 2B', pr, portal: null, variance: Number(pr.total) || 0,
+        allowed: Math.max(abs, ((Number(pr.total) || 0) * pct) / 100)
       });
       return;
     }
-    matchedB.add(k);
-    const variance = Math.abs(Number(pr.total) - Number(b.total));
-    // Tolerance is the more forgiving of the absolute cap and the percentage cap.
-    const allowed = Math.max(abs, (Number(pr.total) * pct) / 100);
+    usedPortal.add(match.index);
+    const components = ['taxable', 'igst', 'cgst', 'sgst', 'cess', 'total'];
+    const variance = components.reduce((sum, field) => sum + Math.abs((Number(pr[field]) || 0) - (Number(b[field]) || 0)), 0);
+    const allowed = Math.max(abs, ((Number(pr.total) || 0) * pct) / 100);
     results.push({
-      key: k,
+      key: rowKey,
       status: variance <= allowed ? 'Matched' : 'Variance',
       pr, portal: b, variance, allowed
     });
   });
 
-  gr.portal2b.forEach(b => {
-    if (matchedB.has(reconKey(b))) return;
+  (gr.portal2b || []).forEach((b, index) => {
+    if (usedPortal.has(index)) return;
     results.push({
-      key: reconKey(b), status: 'Missing in Register', pr: null, portal: b,
-      variance: b.total, allowed: Math.max(abs, (b.total * pct) / 100)
+      key: `${invoiceKey(b)}|portal-${index}`, status: 'Missing in Register', pr: null, portal: b,
+      variance: Number(b.total) || 0, allowed: Math.max(abs, ((Number(b.total) || 0) * pct) / 100)
     });
   });
 
   results.forEach(r => {
-    const res = (gr.resolutions || {})[r.key];
+    const res = (gr.resolutions || {})[r.key] || (gr.resolutions || {})[reconKey(r.pr || r.portal)];
     r.resolution = res ? res.status : 'Open';
   });
 
@@ -3150,8 +3168,8 @@ function renderGstRecon() {
                 </div>
                 <div class="modal-actions">
                   ${r.resolution === 'Open' ? `
-                    <button class="btn-secondary" data-action="recon-resolve" data-recon-key="${r.key}">Mark Reconciled</button>
-                    <button class="btn-secondary" data-action="recon-accept" data-recon-key="${r.key}">Accept Variance</button>
+                    ${r.pr && r.portal ? `<button class="btn-secondary" data-action="recon-resolve" data-recon-key="${r.key}">Mark Reconciled</button>
+                    ${r.status === 'Variance' ? `<button class="btn-secondary" data-action="recon-accept" data-recon-key="${r.key}">Accept Variance</button>` : ''}` : '<span class="muted">Resolve source records before reconciliation.</span>'}
                   ` : `
                     <button class="btn-ghost" data-action="recon-reopen" data-recon-key="${r.key}">Reopen</button>
                   `}
@@ -3225,8 +3243,7 @@ function eligibleItc(monthKeyStr) {
   const gr = state.data.gstRecons.find(g => g.month === monthKeyStr);
   if (!gr) return 0;
   return reconcileGst(gr).reduce((sum, r) => {
-    const claimable = r.status === 'Matched' || r.resolution === 'Variance Accepted';
-    if (!claimable || !r.pr) return sum;
+    if (r.status !== 'Matched' || !r.pr || !r.portal) return sum;
     return sum + (Number(r.pr.igst) || 0);
   }, 0);
 }
@@ -3246,13 +3263,33 @@ function tdsFor(monthKeyStr) {
 function payrollFor(monthKeyStr) {
   const run = (state.data.payrollRuns || []).find(r => r.month === monthKeyStr);
   if (!run) return null;
-  return (Number(run.pfEmployee) || 0) + (Number(run.pfEmployer) || 0) + (Number(run.esi) || 0);
+  // Cash paid to employees plus statutory remittances. Employee PF is already
+  // withheld from net wages, so add it once as a statutory payment.
+  return (Number(run.net) || 0) + (Number(run.pfEmployee) || 0) + (Number(run.pfEmployer) || 0) + (Number(run.esi) || 0);
 }
 
-function advanceTaxInstalment() {
+function advanceTaxInstalment(index) {
   const prof = state.data.firmTaxProfile || {};
-  if (prof.presumptive) return Math.round((Number(prof.prevYearAssessedTax) || 0) * 0.75 / 4);
-  return Math.round((Number(prof.prevYearAssessedTax) || 0) * 0.9 / 4);
+  const estimated = Number(prof.estimatedCurrentYearTax);
+  if (!Number.isFinite(estimated) || estimated < 0) return null;
+  const netTax = Math.max(0, estimated - (Number(prof.expectedTdsTcs) || 0));
+  if (prof.presumptive) return index === 3 ? Math.max(0, Math.round(netTax - (Number(prof.advanceTaxPaid) || 0))) : 0;
+  const cumulativeTargets = [0.15, 0.45, 0.75, 1];
+  const paid = (Number(prof.advanceTaxPaid) || 0) + (state.data.advanceTaxPayments || []).filter(p => p.financialYear === currentFinancialYear() && p.date <= ADVANCE_TAX_DATES[index]).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  return Math.max(0, Math.round(netTax * cumulativeTargets[index] - paid));
+}
+
+function currentFinancialYear() {
+  const now = new Date();
+  return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+}
+function taxDatesForCurrentFY() {
+  const fy = currentFinancialYear();
+  return [`${fy}-06-15`, `${fy}-09-15`, `${fy}-12-15`, `${fy + 1}-03-15`];
+}
+function tdsReturnDatesForCurrentFY() {
+  const fy = currentFinancialYear();
+  return [`${fy}-07-31`, `${fy}-10-31`, `${fy + 1}-01-31`, `${fy + 1}-05-31`];
 }
 
 // Build every obligation falling due in [from, to].
@@ -3305,7 +3342,8 @@ function generateObligations(from, to) {
     });
   }
 
-  ADVANCE_TAX_DATES.forEach((date, idx) => {
+  const advanceDates = taxDatesForCurrentFY();
+  advanceDates.forEach((date, idx) => {
     if (date < from || date > to) return;
     out.push({
       id: 'advance-tax-' + idx,
@@ -3314,13 +3352,17 @@ function generateObligations(from, to) {
       category: 'Income Tax',
       dueDate: date,
       period: null,
-      amount: advanceTaxInstalment(),
-      detail: '90% of last year assessed tax, in four instalments',
+      amount: advanceTaxInstalment(idx),
+      detail: state.data.firmTaxProfile?.estimatedCurrentYearTax == null
+        ? 'Enter estimated current-year tax, expected TDS/TCS and advance tax paid in Firm Settings to calculate this instalment.'
+        : state.data.firmTaxProfile?.presumptive
+          ? 'Presumptive tax estimate; full balance due in the March instalment.'
+          : 'Estimated current-year tax less expected TDS/TCS, applied to cumulative 15/45/75/100% targets.',
       derived: true
     });
   });
 
-  TDS_RETURN_DATES.forEach((date, idx) => {
+  tdsReturnDatesForCurrentFY().forEach((date, idx) => {
     if (date < from || date > to) return;
     out.push({
       id: 'tds-return-' + idx,
@@ -3417,8 +3459,9 @@ function canApprovePayment(p) {
 }
 
 function renderPayments() {
-  const from = state.payFrom || '2026-10-01';
-  const to = state.payTo || '2026-10-31';
+  const month = new Date().toISOString().slice(0, 7);
+  const from = state.payFrom || `${month}-01`;
+  const to = state.payTo || `${month}-${String(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
   const account = (state.data.bankAccounts || [])[0] || { balance: 0, name: 'No account', asOf: '-' };
 
   const obligations = buildCashCurve(generateObligations(from, to), account.balance);
@@ -4632,43 +4675,46 @@ function openCreateModal(type) {
     return;
   }
 
-  // This form only knows how to create a task. Any other type must be handled
-  // by its own creator, otherwise submitting silently files the wrong record.
-  if (type !== 'task') {
-    toast(`${type} creation is not wired up yet.`);
-    return;
-  }
+  const supported = ['task', 'client', 'client request', 'calendar event', 'announcement'];
+  if (!supported.includes(type)) { toast(`${type} cannot be created here.`); return; }
   const root = document.getElementById('modal-root');
+  const clients = state.data.clients || [];
+  const members = state.data.users || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const clientOptions = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const memberOptions = members.map(u => `<option value="${u.name}">${u.name} (${u.role})</option>`).join('');
+  const label = type.replace(/\b\w/g, c => c.toUpperCase());
+  const specificFields = type === 'task' ? `
+    <div class="form-group"><label>Client</label><select required id="form-client-select">${clientOptions}</select></div>
+    <div class="form-group"><label>Assigned Staff</label><select required id="form-staff-select">${memberOptions}</select></div>
+    <div class="form-group"><label>Reviewer</label><select id="form-reviewer-select"><option value="">Unassigned</option>${memberOptions}</select></div>
+    <div class="form-group"><label>Due date</label><input required id="form-date-input" type="date" value="${today}" /></div>
+    <div class="form-group"><label>Priority</label><select id="form-priority-select"><option>Medium</option><option>High</option><option>Low</option></select></div>
+    <div class="form-group"><label>Engagement</label><select id="form-engagement-select"><option value="">No engagement</option>${(state.data.engagements || []).map(e => `<option value="${e.id}">${e.title}</option>`).join('')}</select></div>` : '';
+  const clientField = ['client request'].includes(type) ? `<div class="form-group"><label>Client</label><select required id="form-client-select">${clientOptions}</select></div>` : '';
+  const dateField = type === 'calendar event' ? `<div class="form-group"><label>Date</label><input required id="form-date-input" type="date" value="${today}" /></div><div class="form-group"><label>Time / details</label><input id="form-details-input" placeholder="Optional time or location" /></div>` : '';
+  const dueField = type === 'client request' ? `<div class="form-group"><label>Due date</label><input required id="form-date-input" type="date" value="${today}" /></div><div class="form-group"><label>Requested items (one per line)</label><textarea id="form-details-input" rows="4" placeholder="Bank statement\nPurchase register"></textarea></div>` : '';
+  const contentField = type === 'announcement' ? `<div class="form-group"><label>Announcement</label><textarea required id="form-details-input" rows="5" placeholder="Write the message for your team"></textarea></div>` : '';
+  const clientForm = type === 'client' ? `
+    <div class="form-group"><label>Legal name</label><input required id="form-name-input" placeholder="Registered business name" /></div>
+    <div class="form-group"><label>Industry</label><input id="form-industry-input" placeholder="Industry" /></div>
+    <div class="form-group"><label>GSTIN</label><input id="form-gstin-input" maxlength="15" /></div>
+    <div class="form-group"><label>PAN</label><input id="form-pan-input" maxlength="10" /></div>
+    <div class="form-group"><label>Contact email</label><input id="form-email-input" type="email" /></div>` : '';
   root.innerHTML = `
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Create New ${type.toUpperCase()}</h3>
-        <p>Add new accounting work item to practice operating system.</p>
+        <h3>Create ${label}</h3>
+        <p>Enter the details to add this record to the practice workspace.</p>
       </div>
 
       <form id="creator-form">
-        <div class="form-group">
-          <label>Title / Work Name</label>
-          <input required id="form-title-input" placeholder="e.g. Bank Reconciliation — August" />
-        </div>
-
-        <div class="form-group">
-          <label>Client</label>
-          <select id="form-client-select">
-            ${state.data.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Assigned Staff</label>
-          <select id="form-staff-select">
-            ${state.data.users.map(u => `<option value="${u.name}">${u.name} (${u.role})</option>`).join('')}
-          </select>
-        </div>
+        ${type === 'client' ? clientForm : `<div class="form-group"><label>${type === 'announcement' ? 'Title' : type === 'calendar event' ? 'Event title' : type === 'client request' ? 'Request title' : 'Title / Work Name'}</label><input required id="form-title-input" placeholder="${type === 'task' ? 'e.g. Bank Reconciliation' : 'Enter a title'}" /></div>`}
+        ${specificFields}${clientField}${dateField}${dueField}${contentField}
 
         <div class="modal-actions">
           <button type="button" class="btn-secondary" id="close-modal">Cancel</button>
-          <button type="submit" class="btn-primary">Save Work Item</button>
+          <button type="submit" class="btn-primary">Save ${label}</button>
         </div>
       </form>
     </div>
@@ -4679,27 +4725,31 @@ function openCreateModal(type) {
   document.getElementById('close-modal').onclick = () => root.classList.remove('open');
   document.getElementById('creator-form').onsubmit = (e) => {
     e.preventDefault();
-    const title = document.getElementById('form-title-input').value;
-    const clientId = document.getElementById('form-client-select').value;
-    const staff = document.getElementById('form-staff-select').value;
-
-    state.data.tasks.unshift({
-      id: 't_' + Date.now(),
-      title,
-      clientId,
-      engagementId: 'e1',
-      assignedTo: staff,
-      reviewer: 'Rahul Mehta',
-      createdDate: '2026-09-06',
-      dueDate: '2026-09-12',
-      priority: 'High',
-      status: 'In Progress',
-      attachments: [],
-      commentsCount: 0,
-      stage: 'Prep'
-    });
-
-    state.addAuditLog(currentUser().name, 'Created Task', title);
+    const value = id => document.getElementById(id)?.value?.trim() || '';
+    const title = value('form-title-input');
+    const now = new Date().toISOString();
+    if (type === 'client') {
+      const name = value('form-name-input');
+      const id = `c_${Date.now()}`;
+      state.data.clients.unshift({ id, name, legalName: name, industry: value('form-industry-input') || 'Other', gstin: value('form-gstin-input'), pan: value('form-pan-input'), email: value('form-email-input'), status: 'Active', createdAt: now });
+      state.addAuditLog(currentUser().name, 'Created Client', name);
+    } else if (type === 'task') {
+      const clientId = value('form-client-select');
+      const client = getClient(clientId);
+      state.data.tasks.unshift({ id: `t_${Date.now()}`, title, clientId, clientName: client.name, engagementId: value('form-engagement-select') || null, assignedTo: value('form-staff-select') || currentUser().name, reviewer: value('form-reviewer-select'), createdDate: today, dueDate: value('form-date-input'), priority: value('form-priority-select'), status: 'Not Started', attachments: [], commentsCount: 0, stage: 'Prep' });
+      state.addAuditLog(currentUser().name, 'Created Task', title);
+    } else if (type === 'client request') {
+      const clientId = value('form-client-select'); const client = getClient(clientId);
+      const items = value('form-details-input').split(/\r?\n/).map(label => label.trim()).filter(Boolean).map(label => ({ label, done: false }));
+      state.data.requests.unshift({ id: `r_${Date.now()}`, clientId, clientName: client.name, title, dueDate: value('form-date-input'), items, status: `0 of ${items.length} received`, createdAt: now });
+      state.addAuditLog(currentUser().name, 'Created Client Request', title);
+    } else if (type === 'calendar event') {
+      state.data.calendarEvents.unshift({ id: `ev_${Date.now()}`, title, date: value('form-date-input'), details: value('form-details-input'), createdBy: currentUser().name, createdAt: now });
+      state.addAuditLog(currentUser().name, 'Scheduled Event', title);
+    } else if (type === 'announcement') {
+      state.data.announcements.unshift({ id: `a_${Date.now()}`, title, content: value('form-details-input'), date: today, author: currentUser().name, createdAt: now });
+      state.addAuditLog(currentUser().name, 'Published Announcement', title);
+    }
     root.classList.remove('open');
     toast(`Created task "${title}"`);
     navigateTo(state.currentView);
