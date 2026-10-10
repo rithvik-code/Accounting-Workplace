@@ -67,7 +67,9 @@ const seedData = {
     { id: 'ba1', name: 'HDFC Current A/C', balance: 2450000, asOf: '2026-10-01' }
   ],
   firmTaxProfile: {
-    prevYearAssessedTax: 1850000,
+    estimatedCurrentYearTax: null,
+    expectedTdsTcs: 0,
+    advanceTaxPaid: 0,
     presumptive: false
   },
   salesRegisters: [
@@ -3223,8 +3225,7 @@ function dueDateForPeriod(periodKey, dayOfNextMonth) {
 }
 
 // Fixed-date obligations within FY 2026-27.
-const ADVANCE_TAX_DATES = ['2026-06-15', '2026-09-15', '2026-12-15', '2027-03-15'];
-const TDS_RETURN_DATES = ['2026-07-31', '2026-10-31', '2027-01-31', '2027-05-07'];
+const ADVANCE_TAX_DATES = taxDatesForCurrentFY();
 const ITR_DATES = [
   { date: '2026-07-31', label: 'ITR — Non-Audit', rate: 0 },
   { date: '2026-10-31', label: 'ITR — Audit Cases', rate: 0 }
@@ -3269,7 +3270,7 @@ function advanceTaxInstalment(index) {
   const netTax = Math.max(0, estimated - (Number(prof.expectedTdsTcs) || 0));
   if (prof.presumptive) return index === 3 ? Math.max(0, Math.round(netTax - (Number(prof.advanceTaxPaid) || 0))) : 0;
   const cumulativeTargets = [0.15, 0.45, 0.75, 1];
-  const paid = (Number(prof.advanceTaxPaid) || 0) + (state.data.advanceTaxPayments || []).filter(p => p.financialYear === currentFinancialYear() && p.date <= ADVANCE_TAX_DATES[index]).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const paid = (Number(prof.advanceTaxPaid) || 0) + (state.data.advanceTaxPayments || []).filter(p => p.financialYear === currentFinancialYear() && p.date <= taxDatesForCurrentFY()[index]).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   return Math.max(0, Math.round(netTax * cumulativeTargets[index] - paid));
 }
 
