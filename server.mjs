@@ -38,9 +38,34 @@ async function body(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { throw Object.assign(new Error('Body must be valid JSON.'), { status: 400 }); }
 }
-function pickContext(data) {
-  const allow = ['firm', 'clients', 'users', 'tasks', 'engagements', 'deadlines', 'documents', 'payments', 'requests', 'announcements', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents'];
-  return Object.fromEntries(allow.filter(k => data?.[k] !== undefined).map(k => [k, data[k]]));
+function pickContext(data, question) {
+  const terms = String(question || '').toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length > 2 && !new Set(['the','and','for','what','when','where','who','how','can','you','are','was','with','this','that','have','from','about','tell','please']).has(word));
+  const clientNames = new Map((data.clients || []).map(c => [c.id, c.name]));
+  const shapes = {
+    clients: x => ({ name:x.name, status:x.status, industry:x.industry }),
+    users: x => ({ name:x.name, role:x.role }),
+    tasks: x => ({ title:x.title, client:x.clientName || clientNames.get(x.clientId), status:x.status, dueDate:x.dueDate, priority:x.priority, assignedTo:x.assignedTo }),
+    engagements: x => ({ title:x.title, client:clientNames.get(x.clientId), status:x.status, deadline:x.deadline, progress:x.progress }),
+    deadlines: x => ({ title:x.title || x.name, client:x.clientName || clientNames.get(x.clientId), dueDate:x.dueDate || x.deadline, status:x.status }),
+    documents: x => ({ name:x.name, client:x.clientName || clientNames.get(x.clientId), status:x.status, category:x.category }),
+    requests: x => ({ title:x.title, client:x.clientName || clientNames.get(x.clientId), status:x.status, dueDate:x.dueDate }),
+    payments: x => ({ title:x.title, client:x.clientName || clientNames.get(x.clientId), status:x.status, dueDate:x.dueDate, amount:x.amount }),
+    reviews: x => ({ title:x.title, client:x.clientName || clientNames.get(x.clientId), status:x.status, reviewer:x.reviewer }),
+    announcements: x => ({ title:x.title, date:x.date, content:String(x.content || '').slice(0, 180) }),
+    knowledgeBase: x => ({ title:x.title, category:x.category, desc:String(x.desc || '').slice(0, 180) }),
+    calendarEvents: x => ({ title:x.title, date:x.date, client:x.clientName || clientNames.get(x.clientId) }),
+    gstRecons: x => ({ client:x.clientName, period:x.period, status:x.status, purchaseLineCount:x.purchaseRegister?.length, salesLineCount:x.salesRegister?.length })
+  };
+  const compact = { firm: data.firm ? { name:data.firm.name, legalName:data.firm.legalName } : undefined, counts:{} };
+  for (const [name, shape] of Object.entries(shapes)) {
+    const rows = Array.isArray(data[name]) ? data[name] : [];
+    compact.counts[name] = rows.length;
+    const formatted = rows.map(row => shape(row)).filter(row => Object.values(row).some(v => v !== undefined && v !== null && v !== ''));
+    const ranked = formatted.map(row => ({ row, score:terms.reduce((n,t) => n + (JSON.stringify(row).toLowerCase().includes(t) ? 1 : 0), 0) }));
+    const relevant = terms.length ? ranked.filter(x => x.score > 0).sort((a,b) => b.score-a.score).slice(0, 5) : [];
+    compact[name] = (relevant.length ? relevant.map(x => x.row) : formatted.slice(0, terms.length ? 2 : 4));
+  }
+  return compact;
 }
 function fallbackReply(question, data, history) {
   const q = question.toLowerCase();
@@ -61,8 +86,8 @@ function fallbackReply(question, data, history) {
 }
 function assistantMessages(question, context, history) {
   return [
-    { role: 'system', content: `You are a warm, conversational assistant inside an accounting practice workspace. Respond naturally, ask useful follow-up questions, remember the conversation, and ground claims about the firm in the supplied data. Never invent records or claim to have changed anything. For tax, legal, accounting, or compliance decisions, explain uncertainty and suggest professional verification. Keep answers readable. Workspace data (JSON): ${JSON.stringify(pickContext(context)).slice(0, 50000)}` },
-    ...history.slice(-12).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 5000) })),
+    { role: 'system', content: `You are a warm, conversational assistant inside an accounting practice workspace. Respond naturally, ask useful follow-up questions, remember the conversation, and ground claims about the firm in the supplied data. Never invent records or claim to have changed anything. For tax, legal, accounting, or compliance decisions, explain uncertainty and suggest professional verification. Prefer concise answers of 2–5 sentences. Workspace data (JSON): ${JSON.stringify(pickContext(context, question)).slice(0, 8000)}` },
+    ...history.slice(-4).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 1400) })),
     { role: 'user', content: question.slice(0, 5000) }
   ];
 }
@@ -88,7 +113,7 @@ async function assistantReply(question, context, history) {
     try {
       const response = await fetch(`${endpoint}/api/chat`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen2.5:3b', messages, stream: false, options: { temperature: 0.6 } }),
+        body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen2.5:3b', messages, stream: false, keep_alive: '10m', options: { temperature: 0.6, num_ctx: 4096, num_predict: 128 } }),
         signal: AbortSignal.timeout(120000)
       });
       const result = await response.json().catch(() => ({}));
@@ -102,6 +127,81 @@ async function assistantReply(question, context, history) {
     }
   }
   return { answer: fallbackReply(question, context, history), mode: 'local-fallback' };
+}
+async function streamAssistant(input, res) {
+  const question = String(input.message || '').trim();
+  const id = String(input.conversationId || 'default').slice(0, 160);
+  const supplied = Array.isArray(input.history) ? input.history.slice(-12).filter(m => ['user', 'assistant'].includes(m.role) && typeof m.content === 'string') : [];
+  const history = supplied.length ? supplied : (conversations.get(id) || []);
+  const context = input.workspace || workspace;
+  const provider = String(process.env.AI_PROVIDER || 'ollama').toLowerCase();
+  let answer = '';
+  const emit = value => res.write(`data: ${JSON.stringify(value)}\n\n`);
+  try {
+    if (provider === 'ollama') {
+      const endpoint = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
+      const response = await fetch(`${endpoint}/api/chat`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen2.5:3b', messages: assistantMessages(question, context, history), stream: true, keep_alive: '10m', options: { temperature: 0.5, num_ctx: 4096, num_predict: 128 } }),
+        signal: AbortSignal.timeout(120000)
+      });
+      if (!response.ok) throw new Error(`Ollama returned HTTP ${response.status}`);
+      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.flushHeaders?.();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const chunk = JSON.parse(line);
+          const token = chunk.message?.content || '';
+          if (token) { answer += token; emit({ token }); }
+        }
+      }
+      if (buffer.trim()) {
+        const chunk = JSON.parse(buffer);
+        const token = chunk.message?.content || '';
+        if (token) { answer += token; emit({ token }); }
+      }
+      if (!answer.trim()) throw new Error('Ollama returned an empty answer.');
+      if (res.destroyed) return;
+      history.push({ role: 'user', content: question }, { role: 'assistant', content: answer });
+      conversations.set(id, history.slice(-24));
+      emit({ done: true, mode: 'ollama' });
+      return res.end();
+    }
+    const result = await assistantReply(question, context, history);
+    answer = result.answer;
+    res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive' });
+    res.flushHeaders?.();
+    emit({ token: answer });
+    history.push({ role: 'user', content: question }, { role: 'assistant', content: answer });
+    conversations.set(id, history.slice(-24));
+    emit({ done: true, mode: result.mode });
+    res.end();
+  } catch (error) {
+    console.warn(`Assistant streaming request failed: ${error.message}`);
+    if (res.headersSent) {
+      if (!answer) {
+        answer = fallbackReply(question, context, history);
+        emit({ token: answer });
+      }
+      emit({ done: true, mode: 'local-fallback' });
+      return res.end();
+    }
+    const result = { answer: fallbackReply(question, context, history), mode: 'local-fallback' };
+    res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive' });
+    res.flushHeaders?.();
+    emit({ token: result.answer });
+    emit({ done: true, mode: result.mode });
+    res.end();
+  }
 }
 async function api(req, res, url) {
   if (url.pathname === '/api/health') {
@@ -205,6 +305,11 @@ async function api(req, res, url) {
       return send(res, 200, { conversationId: id, answer, mode: result.mode });
     } catch (error) { return send(res, 502, { error: `Assistant unavailable: ${error.message}` }); }
   }
+  if (url.pathname === '/api/assistant/stream' && req.method === 'POST') {
+    const input = await body(req);
+    if (!String(input.message || '').trim()) return send(res, 400, { error: 'A message is required.' });
+    return await streamAssistant(input, res);
+  }
   return send(res, 404, { error: 'API route not found.' });
 }
 
@@ -216,7 +321,31 @@ const bridge = String.raw`(function(){
   var busy=false;
   function escape(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
   function draw(target, history, answer){var rows=history.map(function(m){return '<div class="assistant-response-card"><strong>'+(m.role==='assistant'?'Assistant':'You')+'</strong><br>'+escape(m.content).replace(/\n/g,'<br>')+'</div>';}).join('');target.innerHTML=rows+(answer?'<div class="assistant-response-card"><strong>Assistant</strong><br>'+escape(answer).replace(/\n/g,'<br>')+'</div>':'');}
-  async function ask(button){if(busy)return;var input=document.getElementById('quick-ask-input')||document.getElementById('ai-ask-input');var target=document.getElementById('quick-ask-result')||document.getElementById('ai-response-area');if(!input||!target||!input.value.trim())return;busy=true;var q=input.value.trim();input.value='';var h=[];try{h=JSON.parse(localStorage.getItem(CONV)||'[]')}catch(e){}draw(target,h,'Thinking…');try{var ws={};try{ws=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}var r=await fetch('/api/assistant/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({conversationId:CONV,message:q,history:h,workspace:ws})});var d=await r.json();if(!r.ok)throw new Error(d.error||'Request failed');h.push({role:'user',content:q},{role:'assistant',content:d.answer});h=h.slice(-24);localStorage.setItem(CONV,JSON.stringify(h));draw(target,h); }catch(e){draw(target,h,'I couldn’t reach the assistant service. '+e.message);}finally{busy=false;}}
+  async function ask(button){
+    if(busy)return;
+    var input=document.getElementById('quick-ask-input')||document.getElementById('ai-ask-input');
+    var target=document.getElementById('quick-ask-result')||document.getElementById('ai-response-area');
+    if(!input||!target||!input.value.trim())return;
+    busy=true;var q=input.value.trim();input.value='';var h=[];
+    try{h=JSON.parse(localStorage.getItem(CONV)||'[]')}catch(e){}
+    draw(target,h.concat({role:'user',content:q}),'Thinking…');
+    try{
+      var ws={};try{ws=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+      var r=await fetch('/api/assistant/stream',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({conversationId:CONV,message:q,history:h,workspace:ws})});
+      if(!r.ok)throw new Error('Request failed ('+r.status+')');
+      var reader=r.body.getReader(),decoder=new TextDecoder(),buffer='',answer='';
+      while(true){
+        var part=await reader.read();if(part.done)break;
+        buffer+=decoder.decode(part.value,{stream:true});
+        var events=buffer.split('\n\n');buffer=events.pop()||'';
+        events.forEach(function(event){event.split('\n').forEach(function(line){if(!line.startsWith('data: '))return;var d;try{d=JSON.parse(line.slice(6))}catch(e){return;}if(d.error)throw new Error(d.error);if(d.token){answer+=d.token;draw(target,h.concat({role:'user',content:q}),answer);} });});
+      }
+      if(buffer.trim().startsWith('data: ')){var last=JSON.parse(buffer.trim().slice(6));if(last.token)answer+=last.token;}
+      if(!answer)throw new Error('The assistant returned no answer.');
+      h.push({role:'user',content:q},{role:'assistant',content:answer});h=h.slice(-24);localStorage.setItem(CONV,JSON.stringify(h));draw(target,h);
+    }catch(e){draw(target,h.concat({role:'user',content:q}), 'I couldn’t reach the assistant service. '+e.message);}
+    finally{busy=false;}
+  }
   document.addEventListener('click',function(e){var b=e.target.closest('#btn-ai-ask,#btn-quick-ask');if(!b)return;e.preventDefault();e.stopImmediatePropagation();ask(b);},true);
   document.addEventListener('keydown',function(e){if(e.key!=='Enter'||e.shiftKey)return;var i=e.target;if(!i.matches('#ai-ask-input,#quick-ask-input'))return;e.preventDefault();document.getElementById(i.id==='ai-ask-input'?'btn-ai-ask':'btn-quick-ask')?.click();},true);
   document.addEventListener('click',function(e){if(e.target.closest('[data-view="assistant"]')){setTimeout(function(){var t=document.getElementById('ai-response-area');if(t){try{draw(t,JSON.parse(localStorage.getItem(CONV)||'[]'));}catch(x){}}},0);}},true);

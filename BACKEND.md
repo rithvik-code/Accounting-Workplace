@@ -37,6 +37,7 @@ node server.mjs
 - `PUT /api/members/:id` — edit a member's name or role.
 - `DELETE /api/members/:id` — remove a member.
 - `POST /api/assistant/chat` — conversational assistant. Body: `{ "conversationId": "...", "message": "...", "history": [], "workspace": {} }`.
+- `POST /api/assistant/stream` — same conversational API, streamed as server-sent events so answers appear while the model generates them.
 
 Example PowerShell commands:
 
