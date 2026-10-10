@@ -301,8 +301,11 @@
     }
   ],
   "firmTaxProfile": {
-    "prevYearAssessedTax": 1850000,
-    "presumptive": false
+    "estimatedCurrentYearTax": null,
+    "expectedTdsTcs": 0,
+    "advanceTaxPaid": 0,
+    "presumptive": false,
+    "prevYearAssessedTax": 1850000
   },
   "salesRegisters": [
     {
@@ -742,7 +745,7 @@
       "createdDate": "2026-09-04",
       "dueDate": "2026-09-10",
       "priority": "High",
-      "status": "Ready for Review",
+      "status": "In Progress",
       "attachments": [
         "GST_Draft_v1.xlsx"
       ],
@@ -953,6 +956,27 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "al_1791644050399",
+      "time": "2026-10-10 14:54",
+      "user": "Rithvik Shah",
+      "action": "Updated Task Status",
+      "target": "Prepare GST Reconciliation Statement"
+    },
+    {
+      "id": "al_1791644049550",
+      "time": "2026-10-10 14:54",
+      "user": "Rithvik Shah",
+      "action": "Updated Task Status",
+      "target": "Prepare GST Reconciliation Statement"
+    },
+    {
+      "id": "al_1791644041498",
+      "time": "2026-10-10 14:54",
+      "user": "Rithvik Shah",
+      "action": "Signed in",
+      "target": "Partner session started"
+    },
     {
       "id": "al_1791624613655",
       "time": "2026-10-10 09:30",

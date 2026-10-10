@@ -1,6 +1,6 @@
 # Office System backend
 
-The existing HTML, CSS, and app JavaScript are served unchanged. The Node server adds a same-origin API and injects a small runtime bridge into the HTML response so existing workspace saves persist on the server and the assistant can hold a conversation.
+The Node server adds a same-origin API and injects a small runtime bridge into the HTML response so workspace saves persist on the server and the assistant can hold a conversation. The app includes interactive create flows for clients, tasks, client requests, calendar events, announcements, and documents.
 
 ## Run it
 
@@ -10,7 +10,7 @@ Requires Node.js 20 or newer. From this folder:
 node server.mjs
 ```
 
-Open <http://127.0.0.1:4173>. Workspace data is stored in `data/workspace.json` (created on first save). Keep this service on a trusted machine/network: this local prototype does not add user authentication or multi-user access controls.
+Open <http://127.0.0.1:4173>. Workspace data is stored in `data/workspace.json`; original uploaded files are stored under `documents/vault/`. The server binds to loopback. The member PIN screen is still a local demo gate, not server authentication, so do not expose this prototype to a network or use it as a production accounting system.
 
 ## Conversational AI
 
@@ -34,6 +34,8 @@ node server.mjs
 - `POST /api/collections/:name` — create a record; an ID is generated if omitted.
 - `PUT /api/collections/:name/:id` — update a record.
 - `DELETE /api/collections/:name/:id` — delete a record.
+- `POST /api/vault/save` — store a UTF-8 document (`{ name, content }`) or a base64 file (`{ name, base64, type }`, up to 8 MB).
+- `GET /api/vault/files/:id` — download a stored file by its generated vault ID.
 - `GET /api/members` — list members.
 - `POST /api/members` — add a member with `name` and optional `role` (`Partner`, `Manager`, `Senior`, `Accountant`, or `Trainee`).
 - `PUT /api/members/:id` — edit a member's name or role.
@@ -49,6 +51,6 @@ Invoke-RestMethod -Method Put -Uri "http://127.0.0.1:4173/api/members/$($member.
 Invoke-RestMethod -Method Delete -Uri "http://127.0.0.1:4173/api/members/$($member.id)"
 ```
 
-Reload the app after changing members through the API so the current browser copy refreshes from the server. The member endpoints are backend routes; the existing UI has no member-management screen.
+Audit history preserves existing entries during whole-workspace saves, and direct audit collection updates/deletes are rejected. This is a local integrity measure, not a cryptographically signed audit ledger.
 
-The workspace still includes its original demo seed records. Team Members is now managed in the app and persisted through `/api/members`; the other seeded screens have not yet been converted to fully user-created data. Member management is limited in the UI to the Partner role.
+Statutory dates and tax amounts in the cash forecast are estimates. GST filing frequency/state group can be set when creating clients; verify extensions and portal-specific due dates before filing or payment. Advance tax needs the current-year estimate and credits entered in Firm Settings. Seed records remain so the app opens with an example workspace; new records are user-entered and saved to the same workspace store.

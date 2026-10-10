@@ -12,7 +12,7 @@ const VAULT_DIR = path.join(ROOT, 'documents', 'vault');
 const PORT = Number(process.env.PORT || 4173);
 const MAX_BODY = 12 * 1024 * 1024;
 const MAX_UPLOAD = 8 * 1024 * 1024;
-const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns']);
+const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns', 'bankAccounts', 'advanceTaxPayments']);
 const MEMBER_ROLES = new Set(['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee']);
 
 await mkdir(DATA_DIR, { recursive: true });
@@ -234,7 +234,7 @@ async function api(req, res, url) {
     if (bytes.length > MAX_UPLOAD) return send(res, 413, { error: 'Uploads must be 8 MB or smaller.' });
     const id = randomUUID();
     const ext = path.extname(name).slice(0, 12);
-    const storedName = `${id}${ext}`;
+    const storedName = `${id}${ext || '.bin'}`;
     await writeFile(path.join(VAULT_DIR, storedName), bytes, { flag: 'wx' });
     return send(res, 201, { ok: true, id, path: `/api/vault/files/${id}`, name, size: bytes.length, type: String(input.type || 'application/octet-stream').slice(0, 120) });
   }
@@ -293,6 +293,7 @@ async function api(req, res, url) {
   if (collectionRoute && req.method === 'POST') {
     const name = collectionRoute[1];
     if (!COLLECTIONS.has(name)) return send(res, 404, { error: 'Unknown collection.' });
+    if (name === 'auditLogs') return send(res, 405, { error: 'Audit entries are append-only through workspace activity.' });
     const item = await body(req);
     if (!item || typeof item !== 'object' || Array.isArray(item)) return send(res, 400, { error: 'Record must be a JSON object.' });
     if (!Array.isArray(workspace[name])) workspace[name] = [];
@@ -305,6 +306,7 @@ async function api(req, res, url) {
   if (recordRoute && ['PUT', 'DELETE'].includes(req.method)) {
     const [, name, id] = recordRoute;
     if (!COLLECTIONS.has(name)) return send(res, 404, { error: 'Unknown collection.' });
+    if (name === 'auditLogs') return send(res, 405, { error: 'Audit entries cannot be changed or deleted.' });
     const rows = Array.isArray(workspace[name]) ? workspace[name] : [];
     const index = rows.findIndex(row => String(row.id) === decodeURIComponent(id));
     if (index < 0) return send(res, 404, { error: 'Record not found.' });

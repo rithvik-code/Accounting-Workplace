@@ -505,6 +505,7 @@ const seedData = {
 class AppState {
   constructor() {
     this.data = this.loadFromStorage();
+    this.data.firmTaxProfile = { ...seedData.firmTaxProfile, ...(this.data.firmTaxProfile || {}) };
     this.currentView = 'home';
     this.activeRole = 'Partner';
     this.appMode = 'firm'; // 'firm' or 'portal'
@@ -1538,15 +1539,17 @@ function renderDeadlines() {
     <!-- Filter Bar -->
     <div class="filter-bar">
       <span>Filter by:</span>
-      <select class="filter-select">
-        <option>All Clients</option>
-        ${state.data.clients.map(c => `<option>${c.name}</option>`).join('')}
+      <select class="filter-select" data-deadline-filter="client">
+        <option value="">All Clients</option>
+        ${state.data.clients.map(c => `<option value="${c.id}" ${state.deadlineClient === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
       </select>
-      <select class="filter-select">
-        <option>All Work Types (GST, Audit, Tax, Payroll)</option>
+      <select class="filter-select" data-deadline-filter="type">
+        <option value="">All Work Types</option>
+        ${[...new Set(state.data.tasks.map(t => t.category || t.workType).filter(Boolean))].map(x => `<option ${state.deadlineType === x ? 'selected' : ''}>${x}</option>`).join('')}
       </select>
-      <select class="filter-select">
-        <option>All Priorities</option>
+      <select class="filter-select" data-deadline-filter="priority">
+        <option value="">All Priorities</option>
+        ${['High', 'Medium', 'Low'].map(x => `<option ${state.deadlinePriority === x ? 'selected' : ''}>${x}</option>`).join('')}
       </select>
     </div>
 
@@ -1555,7 +1558,7 @@ function renderDeadlines() {
         <div class="card-title">Pre-Deadline Stage Pipeline</div>
       </div>
       <div style="display:flex; flex-direction:column; gap: 16px;">
-        ${state.data.tasks.map(t => {
+        ${state.data.tasks.filter(t => (!state.deadlineClient || t.clientId === state.deadlineClient) && (!state.deadlineType || (t.category || t.workType) === state.deadlineType) && (!state.deadlinePriority || t.priority === state.deadlinePriority)).map(t => {
           const c = getClient(t.clientId);
           return `
             <div style="border:1px solid var(--line); border-radius:8px; padding:14px; background:var(--surface-subtle);">
@@ -1616,7 +1619,7 @@ function renderCalendar() {
     <div class="grid-2-1">
       <div class="card">
         <div class="card-title-row">
-          <div class="card-title">${monthLabel}</div>
+          <div class="card-title-row"><button class="btn-secondary" data-action="calendar-prev">←</button><div class="card-title">${monthLabel}</div><button class="btn-secondary" data-action="calendar-next">→</button></div>
         </div>
         <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; text-align:center; font-weight:700; font-size:11px; margin-bottom:10px;">
           <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
@@ -2361,7 +2364,7 @@ function renderReports() {
     <div class="grid-4" style="margin-bottom: 24px;">
       <div class="stat-box">
         <div class="stat-header">Active Clients</div>
-        <div class="stat-value">${state.data.clients.length}</div>
+        <div class="stat-value">${activeClients}</div>
         <div class="stat-meta">${new Set(state.data.clients.map(c => c.industry).filter(Boolean)).size} industries</div>
       </div>
       <div class="stat-box">
@@ -3013,8 +3016,9 @@ function reconcileGst(gr) {
       return;
     }
     usedPortal.add(match.index);
-    const components = ['taxable', 'igst', 'cgst', 'sgst', 'cess', 'total'];
-    const variance = components.reduce((sum, field) => sum + Math.abs((Number(pr[field]) || 0) - (Number(b[field]) || 0)), 0);
+    const components = ['taxable', 'igst', 'cgst', 'sgst', 'cess'];
+    const componentVariance = components.reduce((sum, field) => sum + Math.abs((Number(pr[field]) || 0) - (Number(b[field]) || 0)), 0);
+    const variance = Math.max(componentVariance, Math.abs((Number(pr.total) || 0) - (Number(b.total) || 0)));
     const allowed = Math.max(abs, ((Number(pr.total) || 0) * pct) / 100);
     results.push({
       key: rowKey,
@@ -3214,9 +3218,7 @@ function applyNavPermissions() {
 // obligations fall out at fixed offsets per the Indian compliance calendar.
 const STATUTORY_RULES = [
   { id: 'tds-deposit', label: 'TDS / TCS Deposit', dayOfNextMonth: 7, category: 'TDS', freq: 'monthly' },
-  { id: 'gstr-1', label: 'GSTR-1 (Outward Supplies)', dayOfNextMonth: 11, category: 'GST', freq: 'monthly' },
   { id: 'epf-esi', label: 'EPF + ESI Contribution', dayOfNextMonth: 15, category: 'Payroll', freq: 'monthly' },
-  { id: 'gstr-3b', label: 'GSTR-3B (Tax Payment)', dayOfNextMonth: 20, category: 'GST', freq: 'monthly' }
 ];
 
 // Indian financial year runs April to March. FY 2026-27 = 2026-04 .. 2027-03.
@@ -3234,29 +3236,29 @@ function dueDateForPeriod(periodKey, dayOfNextMonth) {
   const day = Math.min(dayOfNextMonth, lastDay);
   return monthKeyKey(ny, nm) + '-' + String(day).padStart(2, '0');
 }
+function tdsDepositDue(periodKey) {
+  const { year, month } = parseMonthKey(periodKey);
+  return month === 3 ? `${year}-04-30` : dueDateForPeriod(periodKey, 7);
+}
 
-// Fixed-date obligations within FY 2026-27.
+// Fixed-date obligations for the active financial year.
 const ADVANCE_TAX_DATES = taxDatesForCurrentFY();
-const ITR_DATES = [
-  { date: '2026-07-31', label: 'ITR — Non-Audit', rate: 0 },
-  { date: '2026-10-31', label: 'ITR — Audit Cases', rate: 0 }
-];
 
 // ITC is claimable only for lines that actually reconciled. A line missing from
 // 2B was never on the portal; one missing from the register was never booked;
 // an unresolved variance has not been accepted. None of those may claim credit.
-function eligibleItc(monthKeyStr) {
-  const gr = state.data.gstRecons.find(g => g.month === monthKeyStr);
+function eligibleItc(monthKeyStr, clientId) {
+  const gr = state.data.gstRecons.find(g => g.month === monthKeyStr && (!clientId || g.clientId === clientId));
   if (!gr) return 0;
   return reconcileGst(gr).reduce((sum, r) => {
     if (r.status !== 'Matched' || !r.pr || !r.portal) return sum;
-    return sum + (Number(r.pr.igst) || 0);
+    return sum + ['igst', 'cgst', 'sgst', 'cess'].reduce((tax, field) => tax + (Number(r.pr[field]) || 0), 0);
   }, 0);
 }
 
-function outputTaxFor(monthKeyStr) {
+function outputTaxFor(monthKeyStr, clientId) {
   return (state.data.salesRegisters || [])
-    .filter(s => s.month === monthKeyStr)
+    .filter(s => s.month === monthKeyStr && (!clientId || s.clientId === clientId))
     .reduce((sum, s) => sum + (Number(s.outputTax) || 0), 0);
 }
 
@@ -3269,9 +3271,12 @@ function tdsFor(monthKeyStr) {
 function payrollFor(monthKeyStr) {
   const run = (state.data.payrollRuns || []).find(r => r.month === monthKeyStr);
   if (!run) return null;
-  // Cash paid to employees plus statutory remittances. Employee PF is already
-  // withheld from net wages, so add it once as a statutory payment.
-  return (Number(run.net) || 0) + (Number(run.pfEmployee) || 0) + (Number(run.pfEmployer) || 0) + (Number(run.esi) || 0);
+  return run.statutoryPaid || run.status === 'Paid' ? 0 : (Number(run.pfEmployee) || 0) + (Number(run.pfEmployer) || 0) + (Number(run.esi) || 0);
+}
+function payrollWagesFor(monthKeyStr) {
+  const run = (state.data.payrollRuns || []).find(r => r.month === monthKeyStr);
+  if (!run || run.wagesPaid || run.status === 'Paid') return null;
+  return { amount: Number(run.net) || 0, dueDate: run.salaryDueDate || `${monthKeyStr}-${String(new Date(Number(monthKeyStr.slice(0, 4)), Number(monthKeyStr.slice(5, 7)), 0).getDate()).padStart(2, '0')}` };
 }
 
 function advanceTaxInstalment(index) {
@@ -3311,27 +3316,18 @@ function generateObligations(from, to) {
     const period = monthKeyKey(y, m);
 
     STATUTORY_RULES.forEach(rule => {
-      const due = dueDateForPeriod(period, rule.dayOfNextMonth);
+      const due = rule.id === 'tds-deposit' ? tdsDepositDue(period) : dueDateForPeriod(period, rule.dayOfNextMonth);
       if (due < from || due > to) return;
 
       let amount = null, detail = '';
       if (rule.id === 'tds-deposit') {
         amount = tdsFor(period);
         detail = 'Deposit on TDS deducted during ' + periodLabel(period);
-      } else if (rule.id === 'gstr-1') {
-        amount = 0;
-        detail = 'Return for outward supplies of ' + periodLabel(period);
       } else if (rule.id === 'epf-esi') {
         amount = payrollFor(period);
         detail = payrollFor(period) === null
           ? 'No payroll run recorded for ' + periodLabel(period)
           : 'Employee + employer PF and ESI for ' + periodLabel(period);
-      } else if (rule.id === 'gstr-3b') {
-        const outputTax = outputTaxFor(period);
-        const itc = eligibleItc(period);
-        amount = outputTax - itc;
-        detail = 'Output tax ' + inr(outputTax) + ' less eligible ITC ' + inr(itc) +
-                 (itc === 0 && outputTax > 0 ? ' (no reconciliation on file for this period)' : '');
       }
 
       out.push({
@@ -3346,6 +3342,24 @@ function generateObligations(from, to) {
         derived: true
       });
     });
+
+    const wages = payrollWagesFor(period);
+    if (wages && wages.dueDate >= from && wages.dueDate <= to) out.push({ id: `payroll-wages-${period}`, kind: 'Statutory', title: `Net Payroll — ${periodLabel(period)}`, category: 'Payroll', dueDate: wages.dueDate, period, amount: wages.amount, detail: 'Take-home pay from the recorded payroll run. Enter salaryDueDate or mark wagesPaid when settled.', derived: true });
+
+    // GST calendars are client-specific. Monthly is the default; QRMP returns
+    // use quarter-end filing periods and the configured state due-date group.
+    for (const client of state.data.clients || []) {
+      if (client.gstinRegistered === false) continue;
+      const quarterly = client.gstFilingFrequency === 'quarterly';
+      if (quarterly && ![3, 6, 9, 12].includes(parseMonthKey(period).month)) continue;
+      const outputTax = outputTaxFor(period, client.id);
+      const itc = eligibleItc(period, client.id);
+      const gstr1Due = dueDateForPeriod(period, quarterly ? 13 : 11);
+      const gstr3bDue = dueDateForPeriod(period, quarterly ? (Number(client.gstStateGroup) === 2 ? 24 : 22) : 20);
+      const filingPeriod = quarterly ? `${period} quarter` : periodLabel(period);
+      if (gstr1Due >= from && gstr1Due <= to) out.push({ id: `gstr-1-${client.id}-${period}`, kind: 'Statutory', title: `GSTR-1 — ${client.name}`, category: 'GST', dueDate: gstr1Due, period, clientId: client.id, amount: 0, detail: `${quarterly ? 'Quarterly' : 'Monthly'} outward supplies for ${filingPeriod}. Base due date estimate; verify portal notices and any extensions.`, derived: true });
+      if (gstr3bDue >= from && gstr3bDue <= to) out.push({ id: `gstr-3b-${client.id}-${period}`, kind: 'Statutory', title: `GSTR-3B — ${client.name}`, category: 'GST', dueDate: gstr3bDue, period, clientId: client.id, amount: Math.max(0, outputTax - itc), detail: `Output tax ${inr(outputTax)} less matched ITC ${inr(itc)} for ${filingPeriod}. Due date is an estimate; confirm the client's return frequency, state group and GST portal schedule.`, derived: true });
+    }
   }
 
   const advanceDates = taxDatesForCurrentFY();
@@ -3383,7 +3397,11 @@ function generateObligations(from, to) {
     });
   });
 
-  ITR_DATES.forEach(it => {
+  const fy = currentFinancialYear();
+  [
+    { date: `${fy}-07-31`, label: 'ITR — Non-Audit' },
+    { date: `${fy}-10-31`, label: 'ITR — Audit Cases' }
+  ].forEach(it => {
     if (it.date < from || it.date > to) return;
     out.push({
       id: 'itr-' + it.date,
@@ -4706,7 +4724,9 @@ function openCreateModal(type) {
     <div class="form-group"><label>Industry</label><input id="form-industry-input" placeholder="Industry" /></div>
     <div class="form-group"><label>GSTIN</label><input id="form-gstin-input" maxlength="15" /></div>
     <div class="form-group"><label>PAN</label><input id="form-pan-input" maxlength="10" /></div>
-    <div class="form-group"><label>Contact email</label><input id="form-email-input" type="email" /></div>` : '';
+    <div class="form-group"><label>Contact email</label><input id="form-email-input" type="email" /></div>
+    <div class="form-group"><label>GST return frequency</label><select id="form-gst-frequency"><option value="monthly">Monthly</option><option value="quarterly">Quarterly (QRMP)</option></select></div>
+    <div class="form-group"><label>QRMP state due-date group</label><select id="form-gst-state-group"><option value="1">Group 1 — typically 22nd</option><option value="2">Group 2 — typically 24th</option></select></div>` : '';
   root.innerHTML = `
     <div class="modal-box">
       <div class="modal-header">
@@ -4737,7 +4757,7 @@ function openCreateModal(type) {
     if (type === 'client') {
       const name = value('form-name-input');
       const id = `c_${Date.now()}`;
-      state.data.clients.unshift({ id, name, legalName: name, industry: value('form-industry-input') || 'Other', gstin: value('form-gstin-input'), pan: value('form-pan-input'), email: value('form-email-input'), status: 'Active', createdAt: now });
+      state.data.clients.unshift({ id, name, legalName: name, industry: value('form-industry-input') || 'Other', gstin: value('form-gstin-input'), gstinRegistered: !!value('form-gstin-input'), gstFilingFrequency: value('form-gst-frequency'), gstStateGroup: Number(value('form-gst-state-group')) || 1, pan: value('form-pan-input'), email: value('form-email-input'), status: 'Active', createdAt: now });
       state.addAuditLog(currentUser().name, 'Created Client', name);
     } else if (type === 'task') {
       const clientId = value('form-client-select');
@@ -4764,6 +4784,14 @@ function openCreateModal(type) {
 
 // EVENT LISTENERS & DELEGATION
 document.addEventListener('DOMContentLoaded', () => {
+  document.body.addEventListener('change', (e) => {
+    const filter = e.target.closest('[data-deadline-filter]');
+    if (!filter) return;
+    if (filter.dataset.deadlineFilter === 'client') state.deadlineClient = filter.value;
+    if (filter.dataset.deadlineFilter === 'type') state.deadlineType = filter.value;
+    if (filter.dataset.deadlineFilter === 'priority') state.deadlinePriority = filter.value;
+    navigateTo('deadlines');
+  });
   // Navigation Sidebar Click Delegation
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -4919,6 +4947,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       else if (act === 'gst-next') {
         gstNext();
+      }
+      else if (act === 'calendar-prev' || act === 'calendar-next') {
+        const base = state.calendarMonth ? new Date(`${state.calendarMonth}-01T00:00:00`) : new Date();
+        base.setMonth(base.getMonth() + (act === 'calendar-prev' ? -1 : 1));
+        state.calendarMonth = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}`;
+        navigateTo('calendar');
       }
       else if (act === 'login-pick') {
         handleLoginPick(actBtn.dataset.userId || '');
