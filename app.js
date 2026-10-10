@@ -2677,6 +2677,17 @@ function renderFirmSettings() {
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title-row"><div class="card-title">Advance Tax Estimate</div></div>
+        <p class="muted" style="margin-bottom:12px">Used to estimate current financial year advance tax. Verify the calculation with your tax professional before payment.</p>
+        <div class="grid-2">
+          <div class="form-group"><label>Estimated current-year tax (₹)</label><input name="estimatedCurrentYearTax" type="number" min="0" step="1" value="${state.data.firmTaxProfile?.estimatedCurrentYearTax ?? ''}" placeholder="Enter estimate" /></div>
+          <div class="form-group"><label>Expected TDS / TCS credit (₹)</label><input name="expectedTdsTcs" type="number" min="0" step="1" value="${state.data.firmTaxProfile?.expectedTdsTcs ?? 0}" /></div>
+          <div class="form-group"><label>Advance tax already paid this FY (₹)</label><input name="advanceTaxPaid" type="number" min="0" step="1" value="${state.data.firmTaxProfile?.advanceTaxPaid ?? 0}" /></div>
+          <div class="form-group" style="align-self:center"><label><input name="presumptive" type="checkbox" ${state.data.firmTaxProfile?.presumptive ? 'checked' : ''} /> Presumptive taxation (single March instalment)</label></div>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button type="submit" class="btn-primary">Save Firm Settings</button>
       </div>
@@ -5175,6 +5186,13 @@ document.addEventListener('DOMContentLoaded', () => {
       : (firm().brandColor || '#1b4d3e');
 
     state.data.firm = next;
+    state.data.firmTaxProfile = {
+      ...(state.data.firmTaxProfile || {}),
+      estimatedCurrentYearTax: form.elements.estimatedCurrentYearTax.value === '' ? null : Math.max(0, Number(form.elements.estimatedCurrentYearTax.value) || 0),
+      expectedTdsTcs: Math.max(0, Number(form.elements.expectedTdsTcs.value) || 0),
+      advanceTaxPaid: Math.max(0, Number(form.elements.advanceTaxPaid.value) || 0),
+      presumptive: form.elements.presumptive.checked
+    };
     state.save();
     applyFirmBranding();
     state.addAuditLog(currentUser().name, 'Updated Firm Settings', next.legalName || next.name);
