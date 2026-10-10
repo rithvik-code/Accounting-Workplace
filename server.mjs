@@ -8,12 +8,15 @@ import { randomUUID } from 'node:crypto';
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
 const DB_FILE = path.join(DATA_DIR, 'workspace.json');
+const VAULT_DIR = path.join(ROOT, 'documents', 'vault');
 const PORT = Number(process.env.PORT || 4173);
-const MAX_BODY = 8 * 1024 * 1024;
-const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'auditLogs', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents']);
+const MAX_BODY = 12 * 1024 * 1024;
+const MAX_UPLOAD = 8 * 1024 * 1024;
+const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns']);
 const MEMBER_ROLES = new Set(['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee']);
 
 await mkdir(DATA_DIR, { recursive: true });
+await mkdir(VAULT_DIR, { recursive: true });
 let workspace = existsSync(DB_FILE) ? JSON.parse(await readFile(DB_FILE, 'utf8')) : {};
 let saveQueue = Promise.resolve();
 const conversations = new Map();
@@ -25,6 +28,12 @@ function persist() {
 function send(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(value));
+}
+function mergeAuditLogs(existing, incoming) {
+  const oldRows = Array.isArray(existing) ? existing : [];
+  const oldIds = new Set(oldRows.map(row => String(row.id)));
+  const additions = (Array.isArray(incoming) ? incoming : []).filter(row => row && row.id && !oldIds.has(String(row.id)));
+  return [...additions, ...oldRows].slice(0, 5000);
 }
 async function body(req) {
   const chunks = [];
@@ -212,9 +221,32 @@ async function api(req, res, url) {
   if (url.pathname === '/api/workspace' && req.method === 'PUT') {
     const incoming = await body(req);
     if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return send(res, 400, { error: 'Workspace must be a JSON object.' });
+    incoming.auditLogs = mergeAuditLogs(workspace.auditLogs, incoming.auditLogs);
     workspace = incoming;
     await persist();
     return send(res, 200, { ok: true, updatedAt: new Date().toISOString() });
+  }
+  if (url.pathname === '/vault/save' && req.method === 'POST') {
+    const input = await body(req);
+    const name = String(input.name || 'document').split(/[\\/]/).pop().replace(/[^\p{L}\p{N}._ -]/gu, '_').slice(0, 140) || 'document';
+    const bytes = input.base64 ? Buffer.from(String(input.base64), 'base64') : Buffer.from(String(input.content || ''), 'utf8');
+    if (!bytes.length) return send(res, 400, { error: 'Document content is required.' });
+    if (bytes.length > MAX_UPLOAD) return send(res, 413, { error: 'Uploads must be 8 MB or smaller.' });
+    const id = randomUUID();
+    const ext = path.extname(name).slice(0, 12);
+    const storedName = `${id}${ext}`;
+    await writeFile(path.join(VAULT_DIR, storedName), bytes, { flag: 'wx' });
+    return send(res, 201, { ok: true, id, path: `/vault/files/${id}`, name, size: bytes.length, type: String(input.type || 'application/octet-stream').slice(0, 120) });
+  }
+  const vaultFile = url.pathname.match(/^\/vault\/files\/([0-9a-f-]{36})$/i);
+  if (vaultFile && req.method === 'GET') {
+    const files = await import('node:fs/promises');
+    const entries = await files.readdir(VAULT_DIR);
+    const stored = entries.find(file => file.startsWith(vaultFile[1] + '.'));
+    if (!stored) return send(res, 404, { error: 'File not found.' });
+    const data = await readFile(path.join(VAULT_DIR, stored));
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': data.length, 'cache-control': 'private, no-store', 'content-disposition': `attachment; filename="${stored}"` });
+    return res.end(data);
   }
   if (url.pathname === '/api/members' && req.method === 'GET') return send(res, 200, Array.isArray(workspace.users) ? workspace.users : []);
   if (url.pathname === '/api/members' && req.method === 'POST') {
