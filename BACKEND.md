@@ -33,6 +33,20 @@ node server.mjs
 - `POST /api/collections/:name` — create a record; an ID is generated if omitted.
 - `PUT /api/collections/:name/:id` — update a record.
 - `DELETE /api/collections/:name/:id` — delete a record.
+- `GET /api/members` — list members.
+- `POST /api/members` — add a member with `name` and optional `role` (`Partner`, `Manager`, `Senior`, `Accountant`, or `Trainee`).
+- `PUT /api/members/:id` — edit a member's name or role.
+- `DELETE /api/members/:id` — remove a member.
 - `POST /api/assistant/chat` — conversational assistant. Body: `{ "conversationId": "...", "message": "...", "history": [], "workspace": {} }`.
+
+Example PowerShell commands:
+
+```powershell
+$member = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:4173/api/members -ContentType 'application/json' -Body '{"name":"Asha Mehta","role":"Senior"}'
+Invoke-RestMethod -Method Put -Uri "http://127.0.0.1:4173/api/members/$($member.id)" -ContentType 'application/json' -Body '{"role":"Manager"}'
+Invoke-RestMethod -Method Delete -Uri "http://127.0.0.1:4173/api/members/$($member.id)"
+```
+
+Reload the app after changing members through the API so the current browser copy refreshes from the server. The member endpoints are backend routes; the existing UI has no member-management screen.
 
 The current screen still contains its original demo seed records and sign-in behavior. Making every screen start empty and editing those records entirely through user input requires changes to the existing app JavaScript; this backend preserves the frontend as requested and provides persistence and APIs for that next integration step.

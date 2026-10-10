@@ -11,6 +11,7 @@ const DB_FILE = path.join(DATA_DIR, 'workspace.json');
 const PORT = Number(process.env.PORT || 4173);
 const MAX_BODY = 8 * 1024 * 1024;
 const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'auditLogs', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents']);
+const MEMBER_ROLES = new Set(['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee']);
 
 await mkdir(DATA_DIR, { recursive: true });
 let workspace = existsSync(DB_FILE) ? JSON.parse(await readFile(DB_FILE, 'utf8')) : {};
@@ -89,6 +90,42 @@ async function api(req, res, url) {
     workspace = incoming;
     await persist();
     return send(res, 200, { ok: true, updatedAt: new Date().toISOString() });
+  }
+  if (url.pathname === '/api/members' && req.method === 'GET') return send(res, 200, Array.isArray(workspace.users) ? workspace.users : []);
+  if (url.pathname === '/api/members' && req.method === 'POST') {
+    const input = await body(req);
+    const name = String(input.name || '').trim();
+    const role = String(input.role || 'Trainee');
+    if (!name) return send(res, 400, { error: 'Member name is required.' });
+    if (!MEMBER_ROLES.has(role)) return send(res, 400, { error: `Role must be one of: ${[...MEMBER_ROLES].join(', ')}.` });
+    if (!Array.isArray(workspace.users)) workspace.users = [];
+    const digits = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const member = { id: `u${digits}`, name, role, initials: name.split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase(), avatarBg: input.avatarBg || '#1b4d3e', createdAt: new Date().toISOString() };
+    workspace.users.push(member);
+    await persist();
+    return send(res, 201, member);
+  }
+  const memberRoute = url.pathname.match(/^\/api\/members\/([^/]+)$/);
+  if (memberRoute && ['PUT', 'DELETE'].includes(req.method)) {
+    const id = decodeURIComponent(memberRoute[1]);
+    const members = Array.isArray(workspace.users) ? workspace.users : [];
+    const index = members.findIndex(member => String(member.id) === id);
+    if (index < 0) return send(res, 404, { error: 'Member not found.' });
+    if (req.method === 'DELETE') {
+      members.splice(index, 1);
+      workspace.users = members;
+      await persist();
+      res.writeHead(204); return res.end();
+    }
+    const input = await body(req);
+    const role = input.role === undefined ? members[index].role : String(input.role);
+    const name = input.name === undefined ? members[index].name : String(input.name).trim();
+    if (!name) return send(res, 400, { error: 'Member name is required.' });
+    if (!MEMBER_ROLES.has(role)) return send(res, 400, { error: `Role must be one of: ${[...MEMBER_ROLES].join(', ')}.` });
+    members[index] = { ...members[index], ...input, id, name, role, initials: name.split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase(), updatedAt: new Date().toISOString() };
+    workspace.users = members;
+    await persist();
+    return send(res, 200, members[index]);
   }
   if (url.pathname === '/api/collections' && req.method === 'GET') return send(res, 200, [...COLLECTIONS]);
   const collectionRoute = url.pathname.match(/^\/api\/collections\/([a-zA-Z0-9_-]+)$/);
