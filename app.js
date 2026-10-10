@@ -1587,6 +1587,20 @@ function renderDeadlines() {
 
 // 7. CALENDAR
 function renderCalendar() {
+  const base = state.calendarMonth ? new Date(`${state.calendarMonth}-01T00:00:00`) : new Date();
+  const year = base.getFullYear(), month = base.getMonth();
+  const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const days = new Date(year, month + 1, 0).getDate();
+  const events = (state.data.calendarEvents || []).filter(e => String(e.date || '').startsWith(monthKey));
+  const dayCells = Array.from({ length: firstWeekday }, () => '<div></div>');
+  for (let day = 1; day <= days; day++) {
+    const dateKey = `${monthKey}-${String(day).padStart(2, '0')}`;
+    const dayEvents = events.filter(e => e.date === dateKey);
+    dayCells.push(`<div style="min-height:64px;border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--surface)"><div style="font-weight:700;font-size:11px">${day}</div>${dayEvents.map(e => `<div title="${e.title}" style="font-size:9px;color:var(--emerald);font-weight:700;overflow:hidden;text-overflow:ellipsis">${e.title}</div>`).join('')}</div>`);
+  }
+  const monthLabel = `${MONTH_NAMES[month]} ${year}`;
+  const upcoming = [...events].sort((a, b) => a.date.localeCompare(b.date));
   return `
     <div class="page-header">
       <div class="page-header-title">
@@ -1600,20 +1614,13 @@ function renderCalendar() {
     <div class="grid-2-1">
       <div class="card">
         <div class="card-title-row">
-          <div class="card-title">September 2026</div>
+          <div class="card-title">${monthLabel}</div>
         </div>
         <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; text-align:center; font-weight:700; font-size:11px; margin-bottom:10px;">
           <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
         </div>
         <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; font-size:12px;">
-          ${Array.from({ length: 30 }, (_, i) => i + 1).map(day => `
-            <div style="min-height:54px; border:1px solid var(--line); border-radius:6px; padding:4px; background: ${day === 7 || day === 12 || day === 18 ? 'var(--emerald-soft)' : 'var(--surface)'}">
-              <div style="font-weight:700; font-size:11px;">${day}</div>
-              ${day === 7 ? '<div style="font-size:9px;color:var(--emerald);font-weight:700;">Office Sync</div>' : ''}
-              ${day === 12 ? '<div style="font-size:9px;color:var(--yellow);font-weight:700;">GST Filing</div>' : ''}
-              ${day === 18 ? '<div style="font-size:9px;color:var(--blue);font-weight:700;">Audit Review</div>' : ''}
-            </div>
-          `).join('')}
+          ${dayCells.join('')}
         </div>
       </div>
 
@@ -1621,20 +1628,7 @@ function renderCalendar() {
         <div class="card-title-row">
           <div class="card-title">Upcoming Firm Events</div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          <div style="padding:10px; border:1px solid var(--line); border-radius:6px;">
-            <strong>Sep 7 — Office Sync &amp; Work Allocation</strong>
-            <div style="font-size:11px; color:var(--ink-muted);">09:30 AM · All Team</div>
-          </div>
-          <div style="padding:10px; border:1px solid var(--line); border-radius:6px;">
-            <strong>Sep 12 — Statutory GST Filing Deadline</strong>
-            <div style="font-size:11px; color:var(--ink-muted);">Firm-wide Tax Deadline</div>
-          </div>
-          <div style="padding:10px; border:1px solid var(--line); border-radius:6px;">
-            <strong>Sep 18 — ABC Audit Working Papers Review</strong>
-            <div style="font-size:11px; color:var(--ink-muted);">Rahul Mehta &amp; Priya Nair</div>
-          </div>
-        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">${upcoming.length ? upcoming.map(e => `<div style="padding:10px;border:1px solid var(--line);border-radius:6px"><strong>${shortDate(e.date)} — ${e.title}</strong><div style="font-size:11px;color:var(--ink-muted)">${e.details || `Created by ${e.createdBy || 'team member'}`}</div></div>`).join('') : '<div class="empty-state">No events scheduled this month. Add one to get started.</div>'}</div>
       </div>
     </div>
   `;
