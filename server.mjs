@@ -314,7 +314,9 @@ async function api(req, res, url) {
 }
 
 const bridge = String.raw`(function(){
-  var KEY='acc_workplace_os_data', CONV='acc-assistant-'+(localStorage.getItem('acc_workplace_os_session')||'guest');
+  var KEY='acc_workplace_os_data', CONV='acc-assistant-'+(window.crypto&&crypto.randomUUID?crypto.randomUUID():(Date.now()+'-'+Math.random().toString(36).slice(2)));
+  var conversation=[];
+  try{localStorage.removeItem('acc-assistant-'+(localStorage.getItem('acc_workplace_os_session')||'guest'));}catch(e){}
   try { var r=new XMLHttpRequest(); r.open('GET','/api/workspace',false); r.send(); if(r.status===200){var d=JSON.parse(r.responseText);if(d&&Object.keys(d).length)localStorage.setItem(KEY,JSON.stringify(d));} } catch(e) {}
   var oldSet=Storage.prototype.setItem;
   Storage.prototype.setItem=function(k,v){oldSet.call(this,k,v);if(k===KEY){try{var x=JSON.parse(v);fetch('/api/workspace',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(x)}).catch(function(){});}catch(e){}}};
@@ -326,8 +328,7 @@ const bridge = String.raw`(function(){
     var input=document.getElementById('quick-ask-input')||document.getElementById('ai-ask-input');
     var target=document.getElementById('quick-ask-result')||document.getElementById('ai-response-area');
     if(!input||!target||!input.value.trim())return;
-    busy=true;var q=input.value.trim();input.value='';var h=[];
-    try{h=JSON.parse(localStorage.getItem(CONV)||'[]')}catch(e){}
+    busy=true;var q=input.value.trim();input.value='';var h=conversation.slice();
     draw(target,h.concat({role:'user',content:q}),'Thinking…');
     try{
       var ws={};try{ws=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
@@ -342,13 +343,13 @@ const bridge = String.raw`(function(){
       }
       if(buffer.trim().startsWith('data: ')){var last=JSON.parse(buffer.trim().slice(6));if(last.token)answer+=last.token;}
       if(!answer)throw new Error('The assistant returned no answer.');
-      h.push({role:'user',content:q},{role:'assistant',content:answer});h=h.slice(-24);localStorage.setItem(CONV,JSON.stringify(h));draw(target,h);
+      h.push({role:'user',content:q},{role:'assistant',content:answer});conversation=h.slice(-24);draw(target,conversation);
     }catch(e){draw(target,h.concat({role:'user',content:q}), 'I couldn’t reach the assistant service. '+e.message);}
     finally{busy=false;}
   }
   document.addEventListener('click',function(e){var b=e.target.closest('#btn-ai-ask,#btn-quick-ask');if(!b)return;e.preventDefault();e.stopImmediatePropagation();ask(b);},true);
   document.addEventListener('keydown',function(e){if(e.key!=='Enter'||e.shiftKey)return;var i=e.target;if(!i.matches('#ai-ask-input,#quick-ask-input'))return;e.preventDefault();document.getElementById(i.id==='ai-ask-input'?'btn-ai-ask':'btn-quick-ask')?.click();},true);
-  document.addEventListener('click',function(e){if(e.target.closest('[data-view="assistant"]')){setTimeout(function(){var t=document.getElementById('ai-response-area');if(t){try{draw(t,JSON.parse(localStorage.getItem(CONV)||'[]'));}catch(x){}}},0);}},true);
+  document.addEventListener('click',function(e){if(e.target.closest('[data-view="assistant"]')){setTimeout(function(){var t=document.getElementById('ai-response-area');if(t)draw(t,conversation);},0);}},true);
 })();`;
 
 const server = http.createServer(async (req, res) => {

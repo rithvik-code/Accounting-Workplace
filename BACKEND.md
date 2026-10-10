@@ -16,6 +16,8 @@ Open <http://127.0.0.1:4173>. Workspace data is stored in `data/workspace.json` 
 
 By default, chat uses the locally installed Ollama model `qwen2.5:3b`. Workspace data is sent to Ollama on this machine at `http://127.0.0.1:11434`, not to a hosted AI service. If Ollama is unavailable, the assistant falls back to basic local workspace responses. To select another installed Ollama model:
 
+Conversation history is held only in browser memory and clears when the page is refreshed or closed.
+
 ```powershell
 $env:OLLAMA_MODEL = "qwen2.5:3b"
 node server.mjs
