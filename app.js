@@ -72,6 +72,10 @@ const seedData = {
     advanceTaxPaid: 0,
     presumptive: false
   },
+  // The ledger starts empty. Users choose their own chart and enter their
+  // opening balances as a balanced journal; no sample balances are implied.
+  chartOfAccounts: [],
+  journalEntries: [],
   salesRegisters: [
     { id: 'sr1', clientId: 'c1', month: '2026-08', taxable: 4200000, outputTax: 756000 },
     { id: 'sr2', clientId: 'c1', month: '2026-09', taxable: 3980000, outputTax: 716400 },
@@ -524,6 +528,10 @@ class AppState {
     this.sudoku = null;
     this.drill = null;
     this.gstGame = null;
+    this.ledgerTab = 'journal';
+    this.ledgerStartDate = `${new Date().getFullYear()}-01-01`;
+    this.ledgerEndDate = new Date().toISOString().slice(0, 10);
+    this.journalDraft = [ledgerBlankLine(), ledgerBlankLine()];
   }
 
   loadFromStorage() {
@@ -794,10 +802,10 @@ function syncSessionChrome() {
 const ALL_ROLES = ['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee'];
 
 const CAPABILITIES = {
-  Partner:    ['view.allClients', 'view.firmFinancials', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.final', 'approve.payment', 'create.client', 'create.task', 'upload.doc', 'announce', 'manage.users'],
-  Manager:    ['view.allClients', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.manager', 'approve.payment', 'create.client', 'create.task', 'upload.doc', 'announce'],
+  Partner:    ['view.allClients', 'view.firmFinancials', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.final', 'approve.payment', 'create.client', 'create.task', 'upload.doc', 'announce', 'manage.users', 'ledger.post', 'ledger.manage'],
+  Manager:    ['view.allClients', 'view.clientFinancials', 'view.reports', 'view.auditLog', 'approve.manager', 'approve.payment', 'create.client', 'create.task', 'upload.doc', 'announce', 'ledger.post', 'ledger.manage'],
   Senior:     ['view.clientFinancials', 'approve.senior', 'create.task', 'upload.doc'],
-  Accountant: ['create.task', 'upload.doc'],
+  Accountant: ['create.task', 'upload.doc', 'ledger.post'],
   Trainee:    ['create.task.own', 'upload.doc']
 };
 
@@ -813,6 +821,7 @@ const NAV_ACCESS = {
   requests: ['Partner', 'Manager', 'Senior', 'Accountant'],
   gstrecon: ['Partner', 'Manager', 'Senior'],
   payments: ['Partner', 'Manager'],
+  ledger: ['Partner', 'Manager', 'Accountant'],
   knowledge: ALL_ROLES,
   reports: ['Partner', 'Manager'],
   assistant: ALL_ROLES,
@@ -841,7 +850,10 @@ const ACTION_ACCESS = {
   'team-member-remove': 'manage.users',
   'recon-apply-tolerance': 'approve.manager',
   'workspace-pick': 'view.allClients',
-  'pay-approve': 'approve.payment'
+  'pay-approve': 'approve.payment',
+  'ledger-account-create': 'ledger.manage',
+  'ledger-account-toggle': 'ledger.manage',
+  'ledger-post': 'ledger.post'
 };
 
 const MODAL_ACCESS = {
@@ -2986,6 +2998,173 @@ function inr(n) {
   return '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 }
 
+function ledgerBlankLine() { return { accountId: '', debit: '', credit: '', note: '' }; }
+function ledgerEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+function ledgerAccounts() {
+  return (state.data.chartOfAccounts || []).slice().sort((a, b) => String(a.code).localeCompare(String(b.code), undefined, { numeric: true }));
+}
+function ledgerEntriesThrough(endDate = state.ledgerEndDate) {
+  return (state.data.journalEntries || []).filter(entry => entry.status === 'Posted' && entry.date <= endDate);
+}
+function ledgerTotals(entries) {
+  const totals = new Map();
+  entries.forEach(entry => (entry.lines || []).forEach(line => {
+    const total = totals.get(String(line.accountId)) || { debit: 0, credit: 0 };
+    total.debit += Number(line.debit) || 0;
+    total.credit += Number(line.credit) || 0;
+    totals.set(String(line.accountId), total);
+  }));
+  return totals;
+}
+function ledgerTableRows(rows, emptyMessage, columns = ['Account', 'Debit', 'Credit']) {
+  if (!rows.length) return `<div class="ledger-empty">${ledgerEscape(emptyMessage)}</div>`;
+  return `<div class="ledger-table-wrap"><table class="ledger-table"><thead><tr>${columns.map(column => `<th>${ledgerEscape(column)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+}
+function ledgerTypeBadge(type) { return `<span class="ledger-type ledger-type-${String(type).toLowerCase()}">${ledgerEscape(type)}</span>`; }
+function renderLedger() {
+  const accounts = ledgerAccounts();
+  const entries = (state.data.journalEntries || []).slice().sort((a, b) => b.date.localeCompare(a.date) || String(b.number).localeCompare(String(a.number)));
+  const activeAccounts = accounts.filter(account => account.active !== false);
+  const tabs = [['journal', 'Journal'], ['accounts', 'Chart of accounts'], ['trial-balance', 'Trial balance'], ['profit-loss', 'Profit & loss'], ['balance-sheet', 'Balance sheet']];
+  const tab = state.ledgerTab || 'journal';
+  const options = activeAccounts.map(account => `<option value="${ledgerEscape(account.id)}">${ledgerEscape(account.code)} · ${ledgerEscape(account.name)} (${ledgerEscape(account.type)})</option>`).join('');
+  let content = '';
+
+  if (tab === 'journal') {
+    const debit = state.journalDraft.reduce((sum, line) => sum + (Number(line.debit) || 0), 0);
+    const credit = state.journalDraft.reduce((sum, line) => sum + (Number(line.credit) || 0), 0);
+    content = `<div class="ledger-two-col">
+      <section class="ledger-card">
+        <div class="ledger-card-heading"><div><h2>New journal entry</h2><p>Enter the transaction from your source documents. Debits and credits must match.</p></div><span class="ledger-status">${can('ledger.post') ? 'Ready to post' : 'Read only'}</span></div>
+        ${activeAccounts.length < 2 ? `<div class="ledger-callout">Add at least two active accounts to the chart before you post your first journal. If you need opening balances, enter them as a balanced opening journal.</div>` : ''}
+        <form id="ledger-journal-form" class="ledger-form">
+          <div class="ledger-form-meta"><label>Entry date<input name="date" type="date" required value="${ledgerEscape(state.journalDraftDate || new Date().toISOString().slice(0, 10))}" data-ledger-draft="date"></label><label>Description<input name="memo" maxlength="240" required placeholder="e.g. Record monthly office rent" value="${ledgerEscape(state.journalDraftMemo || '')}" data-ledger-draft="memo"></label></div>
+          <div class="ledger-lines-head"><span>Account</span><span>Line description</span><span>Debit (₹)</span><span>Credit (₹)</span><span></span></div>
+          <div class="ledger-lines">${state.journalDraft.map((line, index) => `<div class="ledger-line" data-ledger-line="${index}">
+            <select aria-label="Account for line ${index + 1}" required data-ledger-line-field="accountId" data-line-index="${index}"><option value="">Choose account…</option>${options}</select>
+            <input aria-label="Description for line ${index + 1}" maxlength="160" placeholder="Optional" value="${ledgerEscape(line.note)}" data-ledger-line-field="note" data-line-index="${index}">
+            <input aria-label="Debit for line ${index + 1}" type="number" min="0" step="0.01" placeholder="0.00" value="${ledgerEscape(line.debit)}" data-ledger-line-field="debit" data-line-index="${index}">
+            <input aria-label="Credit for line ${index + 1}" type="number" min="0" step="0.01" placeholder="0.00" value="${ledgerEscape(line.credit)}" data-ledger-line-field="credit" data-line-index="${index}">
+            <button type="button" class="ledger-remove-line" data-action="ledger-remove-line" data-line-index="${index}" aria-label="Remove line" ${state.journalDraft.length <= 2 ? 'disabled' : ''}>×</button>
+          </div>`).join('')}</div>
+          <div class="ledger-form-footer"><button class="btn-secondary" type="button" data-action="ledger-add-line">＋ Add line</button><div class="ledger-totals"><span>Debits <b>${inr(debit)}</b></span><span>Credits <b>${inr(credit)}</b></span><strong class="${Math.abs(debit - credit) < 0.005 && debit > 0 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(debit - credit) < 0.005 && debit > 0 ? 'Balanced' : `Difference ${inr(debit - credit)}`}</strong></div><button class="btn-primary" type="submit" ${!can('ledger.post') || activeAccounts.length < 2 ? 'disabled title="Posting is unavailable until you have permission and at least two accounts"' : ''}>Post journal</button></div>
+          ${!can('ledger.post') ? '<p class="ledger-muted">Your role can view this ledger but cannot post journals.</p>' : ''}
+        </form>
+      </section>
+      <section class="ledger-card ledger-journal-history"><div class="ledger-card-heading"><div><h2>Posted journals</h2><p>${entries.length} permanent ${entries.length === 1 ? 'entry' : 'entries'} · newest first</p></div></div>
+        ${entries.length ? `<div class="ledger-entry-list">${entries.slice(0, 30).map(entry => `<details class="ledger-entry"><summary><span class="ledger-entry-number">${ledgerEscape(entry.number)}</span><span><b>${ledgerEscape(entry.memo)}</b><small>${ledgerEscape(entry.date)} · ${entry.lines.length} lines · ${ledgerEscape(entry.recordedBy || 'Workspace user')}</small></span><strong>${inr(entry.totalDebit)}</strong><span class="ledger-status">Posted</span></summary><div class="ledger-entry-lines">${entry.lines.map(line => `<div><span>${ledgerEscape(line.accountCode)} · ${ledgerEscape(line.accountName)}${line.note ? ` <small>— ${ledgerEscape(line.note)}</small>` : ''}</span><b>${line.debit ? inr(line.debit) : ''}</b><b>${line.credit ? inr(line.credit) : ''}</b></div>`).join('')}</div></details>`).join('')}</div>` : '<div class="ledger-empty">No journals yet. Create your first balanced entry to start the ledger.</div>'}
+        <p class="ledger-muted">Posted entries are append-only. To correct a posted journal, create a reversing entry and post the corrected transaction.</p>
+      </section>
+    </div>`;
+  } else if (tab === 'accounts') {
+    content = `<div class="ledger-card"><div class="ledger-card-heading"><div><h2>Chart of accounts</h2><p>Create the account codes and categories used by your firm. Accounts already used in a journal cannot be archived.</p></div><span class="ledger-status">${activeAccounts.length} active</span></div>
+      ${can('ledger.manage') ? `<form id="ledger-account-form" class="ledger-account-form"><label>Code<input name="code" required inputmode="numeric" pattern="[0-9]{2,12}" maxlength="12" placeholder="e.g. 1000"></label><label>Account name<input name="name" required maxlength="100" placeholder="e.g. Bank current account"></label><label>Category<select name="type" required><option value="">Choose…</option>${['Asset', 'Liability', 'Equity', 'Income', 'Expense'].map(type => `<option>${type}</option>`).join('')}</select></label><button class="btn-primary" type="submit">＋ Add account</button></form>` : ''}
+      ${ledgerTableRows(accounts.map(account => `<tr><td><b>${ledgerEscape(account.code)}</b></td><td>${ledgerEscape(account.name)}</td><td>${ledgerTypeBadge(account.type)}</td><td>${account.active === false ? '<span class="ledger-inactive">Archived</span>' : '<span class="ledger-active">Active</span>'}</td><td>${can('ledger.manage') && !((state.data.journalEntries || []).some(entry => entry.lines.some(line => String(line.accountId) === String(account.id)))) ? `<button class="ledger-text-action" data-action="ledger-account-toggle" data-account-id="${ledgerEscape(account.id)}" data-next-active="${account.active === false ? 'true' : 'false'}">${account.active === false ? 'Restore' : 'Archive'}</button>` : ''}</td></tr>`, 'Start with account codes that match your bookkeeping setup.', ['Code', 'Account name', 'Category', 'Status', '']))}</div>`;
+  } else {
+    const totals = ledgerTotals(ledgerEntriesThrough());
+    const dateControls = `<div class="ledger-date-range"><label>From<input type="date" value="${ledgerEscape(state.ledgerStartDate)}" data-ledger-date="start"></label><label>Through<input type="date" value="${ledgerEscape(state.ledgerEndDate)}" data-ledger-date="end"></label></div>`;
+    if (tab === 'trial-balance') {
+      const rows = accounts.filter(account => account.active !== false).map(account => {
+        const total = totals.get(String(account.id)) || { debit: 0, credit: 0 };
+        const net = total.debit - total.credit;
+        if (Math.abs(net) < 0.005) return '';
+        return `<tr><td><b>${ledgerEscape(account.code)}</b></td><td>${ledgerEscape(account.name)}</td><td>${ledgerTypeBadge(account.type)}</td><td class="ledger-number">${net > 0 ? inr(net) : '—'}</td><td class="ledger-number">${net < 0 ? inr(-net) : '—'}</td></tr>`;
+      }).filter(Boolean);
+      const sums = [...totals.values()].reduce((sum, t) => sum + t.debit - t.credit, 0);
+      const dr = [...totals.values()].reduce((sum, t) => sum + Math.max(0, t.debit - t.credit), 0);
+      const cr = [...totals.values()].reduce((sum, t) => sum + Math.max(0, t.credit - t.debit), 0);
+      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Trial balance</h2><p>Closing account balances from all posted entries through the selected date.</p></div>${dateControls}</div>${ledgerTableRows(rows, 'No account balances yet. Post balanced journals to populate the trial balance.', ['Code', 'Account name', 'Category', 'Debit', 'Credit'])}<div class="ledger-report-total"><span>Totals as of ${ledgerEscape(state.ledgerEndDate)}</span><b>${inr(dr)}</b><b>${inr(cr)}</b></div><div class="ledger-reconcile ${Math.abs(sums) < 0.005 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(sums) < 0.005 ? '✓ Debits and credits agree' : `⚠ Out of balance by ${inr(sums)}`} · Reports include posted entries only.</div></div>`;
+    } else if (tab === 'profit-loss') {
+      const rangeEntries = ledgerEntriesThrough().filter(entry => entry.date >= state.ledgerStartDate);
+      const rangeTotals = ledgerTotals(rangeEntries);
+      const incomeRows = accounts.filter(account => account.type === 'Income' && account.active !== false).map(account => ({ account, amount: ((rangeTotals.get(String(account.id)) || {}).credit || 0) - ((rangeTotals.get(String(account.id)) || {}).debit || 0) })).filter(row => Math.abs(row.amount) >= 0.005);
+      const expenseRows = accounts.filter(account => account.type === 'Expense' && account.active !== false).map(account => ({ account, amount: ((rangeTotals.get(String(account.id)) || {}).debit || 0) - ((rangeTotals.get(String(account.id)) || {}).credit || 0) })).filter(row => Math.abs(row.amount) >= 0.005);
+      const income = incomeRows.reduce((sum, row) => sum + row.amount, 0);
+      const expense = expenseRows.reduce((sum, row) => sum + row.amount, 0);
+      const accountRows = group => group.map(({ account, amount }) => `<tr><td><b>${ledgerEscape(account.code)}</b></td><td>${ledgerEscape(account.name)}</td><td class="ledger-number">${inr(amount)}</td></tr>`);
+      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Profit &amp; loss</h2><p>Income less expenses for the selected date range.</p></div>${dateControls}</div><h3 class="ledger-section-title">Income</h3>${ledgerTableRows(accountRows(incomeRows), 'No income posted in this period.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total income</span><b>${inr(income)}</b></div><h3 class="ledger-section-title">Expenses</h3>${ledgerTableRows(accountRows(expenseRows), 'No expenses posted in this period.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total expenses</span><b>${inr(expense)}</b></div><div class="ledger-net-result"><span>Net ${income - expense >= 0 ? 'profit' : 'loss'}</span><b>${inr(income - expense)}</b></div></div>`;
+    } else {
+      const cumulative = ledgerTotals(ledgerEntriesThrough());
+      const balanceRows = type => accounts.filter(account => account.type === type && account.active !== false).map(account => {
+        const total = cumulative.get(String(account.id)) || { debit: 0, credit: 0 };
+        return { account, amount: type === 'Asset' ? total.debit - total.credit : total.credit - total.debit };
+      }).filter(row => Math.abs(row.amount) >= 0.005);
+      const rowsFor = group => group.map(({ account, amount }) => `<tr><td><b>${ledgerEscape(account.code)}</b></td><td>${ledgerEscape(account.name)}</td><td class="ledger-number">${inr(amount)}</td></tr>`);
+      const assets = balanceRows('Asset');
+      const liabilities = balanceRows('Liability');
+      const equity = balanceRows('Equity');
+      const currentEarnings = accounts.filter(account => ['Income', 'Expense'].includes(account.type)).reduce((sum, account) => {
+        const total = cumulative.get(String(account.id)) || { debit: 0, credit: 0 };
+        return sum + (account.type === 'Income' ? total.credit - total.debit : total.credit - total.debit);
+      }, 0);
+      const totalAssets = assets.reduce((sum, row) => sum + row.amount, 0);
+      const totalLiabilities = liabilities.reduce((sum, row) => sum + row.amount, 0);
+      const totalEquity = equity.reduce((sum, row) => sum + row.amount, 0) + currentEarnings;
+      const difference = totalAssets - totalLiabilities - totalEquity;
+      content = `<div class="ledger-card"><div class="ledger-report-heading"><div><h2>Balance sheet</h2><p>Account balances through the selected date. Current earnings are included in equity.</p></div>${dateControls}</div><h3 class="ledger-section-title">Assets</h3>${ledgerTableRows(rowsFor(assets), 'No asset balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total assets</span><b>${inr(totalAssets)}</b></div><h3 class="ledger-section-title">Liabilities</h3>${ledgerTableRows(rowsFor(liabilities), 'No liability balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Total liabilities</span><b>${inr(totalLiabilities)}</b></div><h3 class="ledger-section-title">Equity</h3>${ledgerTableRows(rowsFor(equity), 'No equity balances posted as of this date.', ['Code', 'Account name', 'Amount'])}<div class="ledger-report-subtotal"><span>Current earnings</span><b>${inr(currentEarnings)}</b></div><div class="ledger-report-subtotal"><span>Total equity</span><b>${inr(totalEquity)}</b></div><div class="ledger-net-result"><span>Liabilities + equity</span><b>${inr(totalLiabilities + totalEquity)}</b></div><div class="ledger-reconcile ${Math.abs(difference) < 0.005 ? 'is-balanced' : 'is-unbalanced'}">${Math.abs(difference) < 0.005 ? '✓ Balance sheet balances' : `⚠ Assets differ from liabilities and equity by ${inr(difference)}`} · Verify account mapping and opening entries.</div></div>`;
+    }
+  }
+  return `<div class="page-header"><div><div class="page-eyebrow">ACCOUNTING</div><h1>General ledger</h1><p>Build your accounts, record balanced journals, and see statements from the entries you post.</p></div><div class="ledger-posting-note">Posted journals are permanent and dated entries update the reports automatically.</div></div><div class="ledger-tabs" role="tablist">${tabs.map(([key, label]) => `<button role="tab" aria-selected="${tab === key}" class="ledger-tab ${tab === key ? 'active' : ''}" data-action="ledger-tab" data-tab="${key}">${label}</button>`).join('')}</div>${content}<p class="ledger-disclaimer">This is a bookkeeping workspace. Confirm account classification, opening balances, and statutory treatment with your accountant before relying on external statements.</p>`;
+}
+
+async function ledgerRequest(url, options = {}) {
+  const response = await fetch(url, { ...options, headers: { 'content-type': 'application/json', ...(options.headers || {}) } });
+  const payload = response.status === 204 ? null : await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload?.error || `Ledger request failed (${response.status}).`);
+  return payload;
+}
+
+function refreshLedgerDraftTotals() {
+  const draft = state.journalDraft || [];
+  const debit = draft.reduce((sum, line) => sum + (Number(line.debit) || 0), 0);
+  const credit = draft.reduce((sum, line) => sum + (Number(line.credit) || 0), 0);
+  const totals = document.querySelector('.ledger-totals');
+  if (!totals) return;
+  const labels = totals.querySelectorAll('span b');
+  if (labels[0]) labels[0].textContent = inr(debit);
+  if (labels[1]) labels[1].textContent = inr(credit);
+  const verdict = totals.querySelector('strong');
+  if (verdict) {
+    const balanced = debit > 0 && Math.abs(debit - credit) < 0.005;
+    verdict.className = balanced ? 'is-balanced' : 'is-unbalanced';
+    verdict.textContent = balanced ? 'Balanced' : `Difference ${inr(debit - credit)}`;
+  }
+}
+
+async function submitLedgerAccount(form) {
+  if (!can('ledger.manage')) { toast('Your role cannot manage the chart of accounts.'); return; }
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    const account = await ledgerRequest('/api/ledger/accounts', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    state.data.chartOfAccounts.push(account);
+    state.save();
+    state.addAuditLog(currentUser().name, 'Created Ledger Account', `${account.code} · ${account.name}`);
+    toast(`${account.code} · ${account.name} added`);
+    navigateTo('ledger');
+  } catch (error) { toast(error.message); submit.disabled = false; }
+}
+
+async function submitLedgerJournal(form) {
+  if (!can('ledger.post')) { toast('Your role cannot post journals.'); return; }
+  const submit = form.querySelector('[type="submit"]');
+  const lines = (state.journalDraft || []).map(line => ({ accountId: line.accountId, debit: line.debit, credit: line.credit, note: line.note }));
+  submit.disabled = true;
+  try {
+    const entry = await ledgerRequest('/api/ledger/journals', { method: 'POST', body: JSON.stringify({ date: form.elements.date.value, memo: form.elements.memo.value, lines, recordedBy: currentUser().name }) });
+    state.data.journalEntries.push(entry);
+    state.journalDraft = [ledgerBlankLine(), ledgerBlankLine()];
+    state.journalDraftDate = new Date().toISOString().slice(0, 10);
+    state.journalDraftMemo = '';
+    state.save();
+    state.addAuditLog(currentUser().name, 'Posted Journal Entry', `${entry.number} · ${entry.memo}`);
+    toast(`${entry.number} posted and balanced`);
+    navigateTo('ledger');
+  } catch (error) { toast(error.message); submit.disabled = false; }
+}
+
 function reconcileGst(gr) {
   const abs = Number(gr.toleranceAbs) || 0;
   const pct = Number(gr.tolerancePct) || 0;
@@ -4566,6 +4745,7 @@ function navigateTo(viewName) {
     notifications: 'Notifications',
     workspace: 'Switch Workspace',
     payments: 'Payments Out',
+    ledger: 'General Ledger',
     gstrecon: 'GST 2A/2B Recon',
     games: 'Games',
     'game-sudoku': 'Sudoku',
@@ -4603,6 +4783,7 @@ function navigateTo(viewName) {
     case 'workspace': appView.innerHTML = renderWorkspace(); break;
     case 'gstrecon': appView.innerHTML = renderGstRecon(); break;
     case 'payments': appView.innerHTML = renderPayments(); break;
+    case 'ledger': appView.innerHTML = renderLedger(); break;
     case 'games': appView.innerHTML = renderGames(); break;
     case 'game-sudoku': appView.innerHTML = renderSudoku(); break;
     case 'game-drill': appView.innerHTML = renderDrill(); break;
@@ -4808,6 +4989,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filter.dataset.deadlineFilter === 'priority') state.deadlinePriority = filter.value;
     navigateTo('deadlines');
   });
+  document.body.addEventListener('input', (e) => {
+    const headerField = e.target.closest('[data-ledger-draft]');
+    if (headerField) {
+      if (headerField.dataset.ledgerDraft === 'date') state.journalDraftDate = headerField.value;
+      if (headerField.dataset.ledgerDraft === 'memo') state.journalDraftMemo = headerField.value;
+    }
+    const lineField = e.target.closest('[data-ledger-line-field]');
+    if (lineField) {
+      const index = Number(lineField.dataset.lineIndex);
+      if (state.journalDraft[index]) state.journalDraft[index][lineField.dataset.ledgerLineField] = lineField.value;
+      refreshLedgerDraftTotals();
+    }
+  });
+  document.body.addEventListener('change', (e) => {
+    const lineField = e.target.closest('[data-ledger-line-field]');
+    if (lineField) {
+      const index = Number(lineField.dataset.lineIndex);
+      if (state.journalDraft[index]) state.journalDraft[index][lineField.dataset.ledgerLineField] = lineField.value;
+    }
+    const dateField = e.target.closest('[data-ledger-date]');
+    if (!dateField) return;
+    if (dateField.dataset.ledgerDate === 'start') state.ledgerStartDate = dateField.value;
+    if (dateField.dataset.ledgerDate === 'end') state.ledgerEndDate = dateField.value;
+    if (state.ledgerStartDate > state.ledgerEndDate) {
+      toast('The start date must be on or before the end date.');
+      state.ledgerStartDate = state.ledgerEndDate;
+    }
+    navigateTo('ledger');
+  });
   // Navigation Sidebar Click Delegation
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -4904,7 +5114,35 @@ document.addEventListener('DOMContentLoaded', () => {
         toast(`Access denied · ${state.activeRole} role cannot ${act.replace(/^(new|quick)-/, '').replace(/-/g, ' ')}.`);
         return;
       }
-      if (act === 'open-search') {
+      if (act === 'ledger-tab') {
+        state.ledgerTab = actBtn.dataset.tab;
+        navigateTo('ledger');
+      }
+      else if (act === 'ledger-add-line') {
+        state.journalDraft.push(ledgerBlankLine());
+        navigateTo('ledger');
+      }
+      else if (act === 'ledger-remove-line') {
+        if (state.journalDraft.length > 2) state.journalDraft.splice(Number(actBtn.dataset.lineIndex), 1);
+        navigateTo('ledger');
+      }
+      else if (act === 'ledger-account-toggle') {
+        const account = state.data.chartOfAccounts.find(row => String(row.id) === String(actBtn.dataset.accountId));
+        if (!account) { toast('Account not found.'); return; }
+        const nextActive = actBtn.dataset.nextActive === 'true';
+        if (!nextActive && !window.confirm(`Archive ${account.code} · ${account.name}?`)) return;
+        actBtn.disabled = true;
+        ledgerRequest(`/api/ledger/accounts/${encodeURIComponent(account.id)}`, { method: 'PUT', body: JSON.stringify({ active: nextActive }) })
+          .then(updated => {
+            Object.assign(account, updated);
+            state.save();
+            state.addAuditLog(currentUser().name, nextActive ? 'Restored Ledger Account' : 'Archived Ledger Account', `${account.code} · ${account.name}`);
+            toast(`${account.name} ${nextActive ? 'restored' : 'archived'}`);
+            navigateTo('ledger');
+          })
+          .catch(error => { toast(error.message); actBtn.disabled = false; });
+      }
+      else if (act === 'open-search') {
         state.searchQuery = '';
         navigateTo('search');
         setTimeout(() => {
@@ -5219,6 +5457,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.id === 'team-member-add-form' || e.target.matches('[data-team-member-form]')) {
       e.preventDefault();
       saveTeamMemberForm(e.target);
+      return;
+    }
+    if (e.target.id === 'ledger-account-form') {
+      e.preventDefault();
+      submitLedgerAccount(e.target);
+      return;
+    }
+    if (e.target.id === 'ledger-journal-form') {
+      e.preventDefault();
+      submitLedgerJournal(e.target);
       return;
     }
     if (e.target.id !== 'firm-settings-form') return;

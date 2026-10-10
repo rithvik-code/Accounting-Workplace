@@ -63,7 +63,9 @@ function pickContext(data, question) {
     announcements: x => ({ title:x.title, date:x.date, content:String(x.content || '').slice(0, 180) }),
     knowledgeBase: x => ({ title:x.title, category:x.category, desc:String(x.desc || '').slice(0, 180) }),
     calendarEvents: x => ({ title:x.title, date:x.date, client:x.clientName || clientNames.get(x.clientId) }),
-    gstRecons: x => ({ client:x.clientName, period:x.period, status:x.status, purchaseLineCount:x.purchaseRegister?.length, salesLineCount:x.salesRegister?.length })
+    gstRecons: x => ({ client:x.clientName, period:x.period, status:x.status, purchaseLineCount:x.purchaseRegister?.length, salesLineCount:x.salesRegister?.length }),
+    chartOfAccounts: x => ({ code:x.code, name:x.name, type:x.type, active:x.active }),
+    journalEntries: x => ({ number:x.number, date:x.date, memo:x.memo, totalDebit:x.totalDebit, status:x.status, recordedBy:x.recordedBy })
   };
   const compact = { firm: data.firm ? { name:data.firm.name, legalName:data.firm.legalName } : undefined, counts:{} };
   for (const [name, shape] of Object.entries(shapes)) {
@@ -222,6 +224,11 @@ async function api(req, res, url) {
     const incoming = await body(req);
     if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return send(res, 400, { error: 'Workspace must be a JSON object.' });
     incoming.auditLogs = mergeAuditLogs(workspace.auditLogs, incoming.auditLogs);
+    // Accounting records are changed only through validated ledger endpoints.
+    // Whole-workspace saves may persist the rest of the app but cannot create,
+    // edit, or erase a posted journal or alter an account used by one.
+    incoming.journalEntries = Array.isArray(workspace.journalEntries) ? workspace.journalEntries : [];
+    incoming.chartOfAccounts = Array.isArray(workspace.chartOfAccounts) ? workspace.chartOfAccounts : [];
     workspace = incoming;
     await persist();
     return send(res, 200, { ok: true, updatedAt: new Date().toISOString() });
@@ -282,6 +289,76 @@ async function api(req, res, url) {
     workspace.users = members;
     await persist();
     return send(res, 200, members[index]);
+  }
+  if (url.pathname === '/api/ledger/accounts' && req.method === 'GET') {
+    return send(res, 200, Array.isArray(workspace.chartOfAccounts) ? workspace.chartOfAccounts : []);
+  }
+  if (url.pathname === '/api/ledger/accounts' && req.method === 'POST') {
+    const input = await body(req);
+    const code = String(input.code || '').trim();
+    const name = String(input.name || '').trim();
+    const type = String(input.type || '');
+    const validTypes = new Set(['Asset', 'Liability', 'Equity', 'Income', 'Expense']);
+    if (!/^\d{2,12}$/.test(code)) return send(res, 400, { error: 'Account code must contain 2–12 digits.' });
+    if (!name || name.length > 100) return send(res, 400, { error: 'Account name is required and must be 100 characters or fewer.' });
+    if (!validTypes.has(type)) return send(res, 400, { error: 'Choose Asset, Liability, Equity, Income, or Expense.' });
+    if (!Array.isArray(workspace.chartOfAccounts)) workspace.chartOfAccounts = [];
+    if (workspace.chartOfAccounts.some(row => String(row.code).toLowerCase() === code.toLowerCase())) return send(res, 409, { error: 'That account code already exists.' });
+    const account = { id: randomUUID(), code, name, type, active: true, createdAt: new Date().toISOString() };
+    workspace.chartOfAccounts.push(account);
+    await persist();
+    return send(res, 201, account);
+  }
+  const ledgerAccountRoute = url.pathname.match(/^\/api\/ledger\/accounts\/([^/]+)$/);
+  if (ledgerAccountRoute && req.method === 'PUT') {
+    const id = decodeURIComponent(ledgerAccountRoute[1]);
+    const accounts = Array.isArray(workspace.chartOfAccounts) ? workspace.chartOfAccounts : [];
+    const index = accounts.findIndex(row => String(row.id) === id);
+    if (index < 0) return send(res, 404, { error: 'Account not found.' });
+    const input = await body(req);
+    if (typeof input.active !== 'boolean' || Object.keys(input).some(key => key !== 'active')) return send(res, 400, { error: 'Only the active status can be changed here.' });
+    if (!input.active && (Array.isArray(workspace.journalEntries) ? workspace.journalEntries : []).some(entry => (entry.lines || []).some(line => String(line.accountId) === id))) return send(res, 409, { error: 'An account used in a posted journal cannot be archived.' });
+    accounts[index] = { ...accounts[index], active: input.active, updatedAt: new Date().toISOString() };
+    workspace.chartOfAccounts = accounts;
+    await persist();
+    return send(res, 200, accounts[index]);
+  }
+  if (url.pathname === '/api/ledger/journals' && req.method === 'GET') {
+    return send(res, 200, Array.isArray(workspace.journalEntries) ? workspace.journalEntries : []);
+  }
+  if (url.pathname === '/api/ledger/journals' && req.method === 'POST') {
+    const input = await body(req);
+    const date = String(input.date || '');
+    const memo = String(input.memo || '').trim();
+    const actor = String(input.recordedBy || '').trim().slice(0, 100);
+    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) && new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) === date;
+    if (!validDate) return send(res, 400, { error: 'Enter a valid journal date.' });
+    if (!memo || memo.length > 240) return send(res, 400, { error: 'A description is required (240 characters maximum).' });
+    if (!Array.isArray(input.lines) || input.lines.length < 2 || input.lines.length > 100) return send(res, 400, { error: 'A journal needs 2–100 lines.' });
+    const accounts = Array.isArray(workspace.chartOfAccounts) ? workspace.chartOfAccounts : [];
+    const lines = [];
+    let debitCents = 0;
+    let creditCents = 0;
+    for (const line of input.lines) {
+      const account = accounts.find(row => String(row.id) === String(line.accountId) && row.active !== false);
+      if (!account) return send(res, 400, { error: 'Every line must use an active account in the chart.' });
+      const debit = Number(line.debit || 0);
+      const credit = Number(line.credit || 0);
+      if (!Number.isFinite(debit) || !Number.isFinite(credit) || debit < 0 || credit < 0 || (debit > 0 && credit > 0) || (debit === 0 && credit === 0)) return send(res, 400, { error: 'Each line must have a positive debit or a positive credit, never both.' });
+      if (debit > 1e12 || credit > 1e12) return send(res, 400, { error: 'Journal line amount is too large.' });
+      const debitValue = Math.round(debit * 100) / 100;
+      const creditValue = Math.round(credit * 100) / 100;
+      debitCents += Math.round(debitValue * 100);
+      creditCents += Math.round(creditValue * 100);
+      lines.push({ accountId: account.id, accountCode: account.code, accountName: account.name, debit: debitValue, credit: creditValue, note: String(line.note || '').trim().slice(0, 160) });
+    }
+    if (debitCents <= 0 || debitCents !== creditCents) return send(res, 400, { error: 'Debits and credits must balance exactly to the cent.' });
+    if (!Array.isArray(workspace.journalEntries)) workspace.journalEntries = [];
+    const sequence = workspace.journalEntries.length + 1;
+    const entry = { id: randomUUID(), number: `J-${String(sequence).padStart(5, '0')}`, date, memo, lines, totalDebit: debitCents / 100, totalCredit: creditCents / 100, status: 'Posted', recordedBy: actor || 'Workspace user', createdAt: new Date().toISOString() };
+    workspace.journalEntries.push(entry);
+    await persist();
+    return send(res, 201, entry);
   }
   if (url.pathname === '/api/collections' && req.method === 'GET') return send(res, 200, [...COLLECTIONS]);
   const collectionRoute = url.pathname.match(/^\/api\/collections\/([a-zA-Z0-9_-]+)$/);
