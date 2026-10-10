@@ -9,6 +9,17 @@
   <meta property="og:title" content="Accounting Workplace — Operating System for Practice" />
   <meta property="og:description" content="Operating system for accounting practice with client management, tasks, deadlines, GST recon, general ledger, documents, and firm intelligence." />
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    (function() {
+      try {
+        const stored = localStorage.getItem('acc_workspace_theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = stored ? stored : (prefersDark ? 'dark' : 'bright');
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <!-- Sign-in gate: rendered only while nobody is signed in -->
@@ -39,6 +50,10 @@
         <button class="nav-item" data-view="communication">
           <span class="nav-icon">💬</span> <span>Communication</span>
           <span class="nav-badge">3</span>
+        </button>
+        <button class="nav-item" data-view="mastercards" id="nav-mastercards">
+          <span class="nav-icon">🏢</span> <span>Master Cards</span>
+          <span class="nav-badge" id="badge-mastercards">6</span>
         </button>
         <button class="nav-item" data-view="clients">
           <span class="nav-icon">👥</span> <span>Clients</span>
@@ -95,8 +110,18 @@
         <button class="nav-item" data-view="reports">
           <span class="nav-icon">📊</span> <span>Manager Reports</span>
         </button>
-        <button class="nav-item" data-view="assistant">
-          <span class="nav-icon">🤖</span> <span>AI Assistant</span>
+        <button class="nav-item" data-view="ai-studio">
+          <span class="nav-icon">✨</span> <span>AI &amp; Search Grounding</span>
+          <span class="nav-badge" style="background:var(--emerald-soft); color:var(--emerald);">Pro</span>
+        </button>
+        <button class="nav-item" data-view="audio-studio">
+          <span class="nav-icon">🎙️</span> <span>Audio &amp; Live Voice</span>
+        </button>
+        <button class="nav-item" data-view="veo-studio">
+          <span class="nav-icon"> Veo</span> <span>Video Animation Studio</span>
+        </button>
+        <button class="nav-item" data-view="firebase-sync">
+          <span class="nav-icon">☁️</span> <span>Firebase Cloud Sync</span>
         </button>
         <button class="nav-item" data-view="announcements">
           <span class="nav-icon">📢</span> <span>Announcements</span>
@@ -197,6 +222,18 @@
             <span class="teams-icon-glyph">👥</span>
             <span class="teams-label">Teams</span>
             <span class="teams-status-dot" title="Teams Webhook Active"></span>
+          </button>
+
+          <!-- Bright / Dark Mode Toggle Switcher -->
+          <button class="theme-toggle-btn" id="theme-toggle-btn" data-action="toggle-theme" title="Toggle Bright / Dark mode (Ctrl+Shift+D)" aria-label="Toggle Bright / Dark mode">
+            <span class="theme-toggle-icon">🌙</span>
+            <span class="theme-toggle-label">Dark</span>
+          </button>
+
+          <!-- Sync to Local GitHub Folder -->
+          <button class="folder-sync-btn" data-action="open-folder-sync" title="Sync &amp; download latest code to your local GitHub folder">
+            <span>📁</span>
+            <span>Sync to Folder</span>
           </button>
 
           <button class="quick-search-btn" data-action="open-search">

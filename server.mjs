@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { GoogleGenAI } from '@google/genai';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
@@ -284,13 +285,63 @@ async function api(req, res, url) {
     await writeFile(path.join(VAULT_DIR, storedName), bytes, { flag: 'wx' });
     return send(res, 201, { ok: true, id, path: `/api/vault/files/${id}`, name, size: bytes.length, type: String(input.type || 'application/octet-stream').slice(0, 120) });
   }
+  if (url.pathname === '/api/export-project-zip' && req.method === 'GET') {
+    try {
+      const { execSync } = await import('node:child_process');
+      const zipPath = path.join('/tmp', 'accounting-workplace-updated.zip');
+      const pyScript = `import zipfile, os
+zpath = '${zipPath}'
+with zipfile.ZipFile(zpath, 'w', zipfile.ZIP_DEFLATED) as z:
+    for fname in ['index.html', 'app.js', 'styles.css', 'server.mjs', 'package.json', 'metadata.json', '.env.example', 'BACKEND.md']:
+        if os.path.exists(fname):
+            z.write(fname)
+    for folder in ['data', 'documents']:
+        if os.path.exists(folder):
+            for root, dirs, files in os.walk(folder):
+                for f in files:
+                    p = os.path.join(root, f)
+                    z.write(p)
+`;
+      execSync(`python3 -c "${pyScript.replace(/"/g, '\\"')}"`, { cwd: ROOT });
+      const zipBytes = await readFile(zipPath);
+      res.writeHead(200, {
+        'content-type': 'application/zip',
+        'content-disposition': 'attachment; filename="accounting-workplace-updated.zip"',
+        'cache-control': 'no-store'
+      });
+      return res.end(zipBytes);
+    } catch (zipErr) {
+      return send(res, 500, { error: 'Failed to generate zip: ' + zipErr.message });
+    }
+  }
   const vaultFile = url.pathname.match(/^\/api\/vault\/files\/([0-9a-f-]{36})$/i);
   if (vaultFile && req.method === 'GET') {
     const entries = await readdir(VAULT_DIR);
     const stored = entries.find(file => file.startsWith(vaultFile[1] + '.'));
     if (!stored) return send(res, 404, { error: 'File not found.' });
     const data = await readFile(path.join(VAULT_DIR, stored));
-    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': data.length, 'cache-control': 'private, no-store', 'content-disposition': `attachment; filename="${stored}"` });
+    const ext = path.extname(stored).toLowerCase();
+    const mimeMap = {
+      '.pdf': 'application/pdf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xls': 'application/vnd.ms-excel',
+      '.csv': 'text/csv',
+      '.txt': 'text/plain; charset=utf-8',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.zip': 'application/zip'
+    };
+    const contentType = mimeMap[ext] || 'application/octet-stream';
+    const reqFilename = url.searchParams.get('filename') || stored;
+    const isInline = url.searchParams.get('inline') === '1';
+    res.writeHead(200, {
+      'content-type': contentType,
+      'content-length': data.length,
+      'cache-control': 'private, no-store',
+      'content-disposition': `${isInline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(reqFilename)}"`
+    });
     return res.end(data);
   }
   if (url.pathname === '/api/members' && req.method === 'GET') return send(res, 200, Array.isArray(workspace.users) ? workspace.users : []);
@@ -700,6 +751,81 @@ async function api(req, res, url) {
     await persist();
     return send(res, 201, { ok: true, entry });
   }
+
+  if (url.pathname === '/api/ai/studio-chat' && req.method === 'POST') {
+    const input = await body(req);
+    const question = String(input.question || '').trim();
+    if (!question) return send(res, 400, { error: 'Question is required.' });
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return send(res, 200, { answer: `[Local Workspace AI] Regarding "${question}": Workspace data loaded successfully. Please review your client files and tax calendar.` });
+      }
+      const aiClient = new GoogleGenAI({ apiKey });
+      const response = await aiClient.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: [
+          { role: 'user', parts: [{ text: `You are an expert AI partner for Rao & Co. CPAs, proficient in accounting, taxation, GST, audit, and scientific data computing. User query: ${question}. Workspace data summary: ${JSON.stringify(pickContext(workspace, question))}` }] }
+        ],
+        config: {
+          tools: [{ googleSearch: {} }]
+        }
+      });
+      const answer = response.text || 'No response generated.';
+      const grounding = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+      return send(res, 200, { answer, grounding });
+    } catch (err) {
+      return send(res, 200, { answer: `AI Error: ${err.message}. Please try again.` });
+    }
+  }
+
+  if (url.pathname === '/api/ai/transcribe' && req.method === 'POST') {
+    const input = await body(req);
+    const audioBase64 = String(input.audioBase64 || '').trim();
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return send(res, 200, { transcription: 'Sample Audio Transcription (gemini-3.5-transcribe): Client meeting notes recorded for statutory audit review. Action items: Reconcile purchase register GSTR-2B with books and verify TDS deductee entries.' });
+      }
+      const aiClient = new GoogleGenAI({ apiKey });
+      const response = await aiClient.models.generateContent({
+        model: 'gemini-3.5-transcribe',
+        contents: [
+          { role: 'user', parts: [{ text: 'Transcribe this audio meeting recording accurately for accounting and audit notes:' }, { inlineData: { mimeType: 'audio/mp3', data: audioBase64 } }] }
+        ]
+      });
+      return send(res, 200, { transcription: response.text || 'Transcription completed.' });
+    } catch (err) {
+      return send(res, 200, { transcription: `Transcription fallback note: ${err.message}` });
+    }
+  }
+
+  if (url.pathname === '/api/ai/veo-animate' && req.method === 'POST') {
+    const input = await body(req);
+    const prompt = String(input.prompt || 'Professional financial report overview animation').trim();
+    const aspectRatio = String(input.aspectRatio || '16:9');
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return send(res, 200, { videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', note: 'Simulated Veo animation preview.' });
+      }
+      const aiClient = new GoogleGenAI({ apiKey });
+      let operation = await aiClient.models.generateVideos({
+        model: 'veo-3.1-fast-generate-preview',
+        prompt,
+        config: { aspectRatio, numberOfVideos: 1 }
+      });
+      while (!operation.done) {
+        await new Promise(r => setTimeout(r, 5000));
+        operation = await aiClient.operations.getOperation({ operation: operation.name });
+      }
+      const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+      return send(res, 200, { videoUri: videoUri || '', note: 'Veo video generated successfully.' });
+    } catch (err) {
+      return send(res, 200, { videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', note: `Veo generation fallback: ${err.message}` });
+    }
+  }
+
   return send(res, 404, { error: 'API route not found.' });
 }
 
