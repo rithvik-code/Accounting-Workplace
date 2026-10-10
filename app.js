@@ -819,6 +819,7 @@ const NAV_ACCESS = {
   notifications: ALL_ROLES,
   workspace: ['Partner', 'Manager'],
   firmsettings: ['Partner', 'Manager'],
+  team: ['Partner'],
   games: ALL_ROLES,
   'game-sudoku': ALL_ROLES,
   'game-drill': ALL_ROLES,
@@ -834,6 +835,7 @@ const ACTION_ACCESS = {
   'new-event': 'create.task',
   'new-announcement': 'announce',
   'reset-firm': 'manage.users',
+  'team-member-remove': 'manage.users',
   'recon-apply-tolerance': 'approve.manager',
   'workspace-pick': 'view.allClients',
   'pay-approve': 'approve.payment'
@@ -853,6 +855,7 @@ const MODAL_ACCESS = {
 const VIEW_LABELS = {
   clients: 'the client register', reports: 'Manager Reports', auditlog: 'the Audit Log',
   announcements: 'Announcements', reviews: 'Reviews & Approvals', firmsettings: 'Firm Settings',
+  team: 'Team Members',
   workspace: 'the workspace switcher', gstrecon: 'GST reconciliation', deadlines: 'the Deadline Center',
   requests: 'Client Requests'
 };
@@ -2671,6 +2674,77 @@ function renderFirmSettings() {
   `;
 }
 
+// Team membership is managed through the same-origin backend API.
+function memberHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+function renderTeamMembers() {
+  const members = state.data.users || [];
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">People &amp; Access</div>
+        <h1>Team Members</h1>
+        <p>Add people to your firm, update their role, or remove access.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-title-row"><div class="card-title">Add a member</div></div>
+      <form id="team-member-add-form" class="grid-2">
+        <div class="form-group"><label for="team-member-name">Full name</label><input id="team-member-name" name="name" required maxlength="100" placeholder="e.g. Asha Mehta" /></div>
+        <div class="form-group"><label for="team-member-role">Role</label><select id="team-member-role" name="role"><option>Partner</option><option>Manager</option><option>Senior</option><option>Accountant</option><option selected>Trainee</option></select></div>
+        <div class="form-group" style="align-self:end"><button class="btn-primary" type="submit">＋ Add Member</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title-row"><div class="card-title">Current team</div><span class="badge">${members.length} members</span></div>
+      <div class="task-list">
+        ${members.length ? members.map(u => {
+          const self = currentUser() && currentUser().id === u.id;
+          const lastPartner = u.role === 'Partner' && members.filter(m => m.role === 'Partner').length === 1;
+          return `<form class="task-item team-member-row" data-team-member-form data-member-id="${memberHtml(u.id)}">
+            <div class="user-avatar" style="width:36px;height:36px;font-size:12px;background:${memberHtml(u.avatarBg || '#1b4d3e')}">${memberHtml(u.initials || getInitials(u.name || '?'))}</div>
+            <div class="team-member-fields"><input aria-label="Name for ${memberHtml(u.name)}" name="name" value="${memberHtml(u.name)}" required maxlength="100" /><select aria-label="Role for ${memberHtml(u.name)}" name="role">${['Partner','Manager','Senior','Accountant','Trainee'].map(role => `<option ${u.role === role ? 'selected' : ''}>${role}</option>`).join('')}</select></div>
+            <div class="team-member-actions"><button class="btn-secondary" type="submit">Save</button><button class="btn-secondary" type="button" data-action="team-member-remove" data-member-id="${memberHtml(u.id)}" ${self || lastPartner ? 'disabled title="Cannot remove the signed-in member or the last Partner."' : ''}>Remove</button></div>
+          </form>`;
+        }).join('') : '<p class="empty-state">No members yet. Add your first team member above.</p>'}
+      </div>
+    </div>
+  `;
+}
+
+async function saveTeamMemberForm(form) {
+  if (!can('manage.users')) { toast('Only a Partner can manage team members.'); return; }
+  const data = new FormData(form);
+  const name = String(data.get('name') || '').trim();
+  const role = String(data.get('role') || 'Trainee');
+  if (!name) return;
+  const id = form.dataset.memberId;
+  const button = form.querySelector('[type="submit"]');
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch(id ? `/api/members/${encodeURIComponent(id)}` : '/api/members', {
+      method: id ? 'PUT' : 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, role })
+    });
+    const member = response.status === 404 && id
+      ? { ...state.data.users.find(u => u.id === id), name, role, initials: getInitials(name) }
+      : await response.json();
+    if (!response.ok && response.status !== 404) throw new Error(member.error || 'Could not save member.');
+    const index = state.data.users.findIndex(u => u.id === (id || member.id));
+    if (index >= 0) state.data.users[index] = { ...state.data.users[index], ...member, name, role, initials: getInitials(name) };
+    else state.data.users.push({ ...member, name, role, initials: getInitials(name) });
+    state.save();
+    state.addAuditLog(currentUser().name, id ? 'Updated Team Member' : 'Added Team Member', name);
+    toast(id ? `${name} updated` : `${name} added to the team`);
+    navigateTo('team');
+  } catch (error) {
+    toast(error.message || 'Could not save member');
+    if (button) button.disabled = false;
+  }
+}
+
 // 18. GLOBAL SEARCH
 function searchEverything(query) {
   const q = query.trim().toLowerCase();
@@ -4415,6 +4489,7 @@ function navigateTo(viewName) {
     announcements: 'Announcements',
     auditlog: 'Audit Log',
     firmsettings: 'Firm Settings',
+    team: 'Team Members',
     search: 'Search',
     notifications: 'Notifications',
     workspace: 'Switch Workspace',
@@ -4450,6 +4525,7 @@ function navigateTo(viewName) {
     case 'announcements': appView.innerHTML = renderAnnouncements(); break;
     case 'auditlog': appView.innerHTML = renderAuditLog(); break;
     case 'firmsettings': appView.innerHTML = renderFirmSettings(); break;
+    case 'team': appView.innerHTML = renderTeamMembers(); break;
     case 'search': appView.innerHTML = renderSearch(); break;
     case 'notifications': appView.innerHTML = renderNotifications(); break;
     case 'workspace': appView.innerHTML = renderWorkspace(); break;
@@ -4863,6 +4939,26 @@ document.addEventListener('DOMContentLoaded', () => {
         toast('Firm settings reset to defaults');
         navigateTo('firmsettings');
       }
+      else if (act === 'team-member-remove') {
+        const id = actBtn.dataset.memberId;
+        const member = state.data.users.find(u => String(u.id) === String(id));
+        if (!member || member.id === currentUser().id || (member.role === 'Partner' && state.data.users.filter(u => u.role === 'Partner').length <= 1)) {
+          toast('You cannot remove the signed-in member or the last Partner.');
+          return;
+        }
+        if (!window.confirm(`Remove ${member.name} from this firm?`)) return;
+        actBtn.disabled = true;
+        fetch(`/api/members/${encodeURIComponent(id)}`, { method: 'DELETE' })
+          .then(response => { if (!response.ok && response.status !== 404) throw new Error('Could not remove member from the server.'); })
+          .then(() => {
+            state.data.users = state.data.users.filter(u => String(u.id) !== String(id));
+            state.save();
+            state.addAuditLog(currentUser().name, 'Removed Team Member', member.name);
+            toast(`${member.name} removed`);
+            navigateTo('team');
+          })
+          .catch(error => { toast(error.message); actBtn.disabled = false; });
+      }
       else toast(`Action triggered: ${act}`);
       return;
     }
@@ -5014,6 +5110,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.body.addEventListener('submit', (e) => {
+    if (e.target.id === 'team-member-add-form' || e.target.matches('[data-team-member-form]')) {
+      e.preventDefault();
+      saveTeamMemberForm(e.target);
+      return;
+    }
     if (e.target.id !== 'firm-settings-form') return;
     e.preventDefault();
 

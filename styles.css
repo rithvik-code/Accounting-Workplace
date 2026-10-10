@@ -3082,3 +3082,54 @@ body.is-locked .app-shell { display: none !important; }
   color: var(--ink-muted);
   min-height: 14px;
 }
+
+.team-member-row {
+  align-items: center;
+  gap: 12px;
+}
+
+.team-member-fields {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(130px, 190px);
+  gap: 10px;
+  flex: 1 1 auto;
+}
+
+.team-member-fields input,
+.team-member-fields select {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.team-member-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.team-member-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .team-member-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .team-member-fields {
+    flex-basis: calc(100% - 52px);
+    grid-template-columns: 1fr;
+  }
+
+  .team-member-actions {
+    margin-left: 48px;
+  }
+}
