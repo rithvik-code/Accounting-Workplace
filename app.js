@@ -3040,7 +3040,7 @@ function renderLedger() {
     content = `<div class="ledger-two-col">
       <section class="ledger-card">
         <div class="ledger-card-heading"><div><h2>New journal entry</h2><p>Enter the transaction from your source documents. Debits and credits must match.</p></div><span class="ledger-status">${can('ledger.post') ? 'Ready to post' : 'Read only'}</span></div>
-        ${activeAccounts.length < 2 ? `<div class="ledger-callout">Add at least two active accounts to the chart before you post your first journal. If you need opening balances, enter them as a balanced opening journal.</div>` : ''}
+        ${activeAccounts.length < 2 ? `<div class="ledger-callout">Add at least two active accounts to the chart before you post your first journal. If you need opening balances, enter them as a balanced opening journal. <button type="button" class="ledger-text-action" data-action="ledger-tab" data-tab="accounts">Set up your chart →</button></div>` : ''}
         <form id="ledger-journal-form" class="ledger-form">
           <div class="ledger-form-meta"><label>Entry date<input name="date" type="date" required value="${ledgerEscape(state.journalDraftDate || new Date().toISOString().slice(0, 10))}" data-ledger-draft="date"></label><label>Description<input name="memo" maxlength="240" required placeholder="e.g. Record monthly office rent" value="${ledgerEscape(state.journalDraftMemo || '')}" data-ledger-draft="memo"></label></div>
           <div class="ledger-lines-head"><span>Account</span><span>Line description</span><span>Debit (₹)</span><span>Credit (₹)</span><span></span></div>

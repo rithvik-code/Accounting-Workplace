@@ -18,6 +18,8 @@ const MEMBER_ROLES = new Set(['Partner', 'Manager', 'Senior', 'Accountant', 'Tra
 await mkdir(DATA_DIR, { recursive: true });
 await mkdir(VAULT_DIR, { recursive: true });
 let workspace = existsSync(DB_FILE) ? JSON.parse(await readFile(DB_FILE, 'utf8')) : {};
+if (!Array.isArray(workspace.chartOfAccounts)) workspace.chartOfAccounts = [];
+if (!Array.isArray(workspace.journalEntries)) workspace.journalEntries = [];
 let saveQueue = Promise.resolve();
 const conversations = new Map();
 
