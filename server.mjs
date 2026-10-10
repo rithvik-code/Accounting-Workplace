@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -226,7 +226,7 @@ async function api(req, res, url) {
     await persist();
     return send(res, 200, { ok: true, updatedAt: new Date().toISOString() });
   }
-  if (url.pathname === '/vault/save' && req.method === 'POST') {
+  if (url.pathname === '/api/vault/save' && req.method === 'POST') {
     const input = await body(req);
     const name = String(input.name || 'document').split(/[\\/]/).pop().replace(/[^\p{L}\p{N}._ -]/gu, '_').slice(0, 140) || 'document';
     const bytes = input.base64 ? Buffer.from(String(input.base64), 'base64') : Buffer.from(String(input.content || ''), 'utf8');
@@ -236,12 +236,11 @@ async function api(req, res, url) {
     const ext = path.extname(name).slice(0, 12);
     const storedName = `${id}${ext}`;
     await writeFile(path.join(VAULT_DIR, storedName), bytes, { flag: 'wx' });
-    return send(res, 201, { ok: true, id, path: `/vault/files/${id}`, name, size: bytes.length, type: String(input.type || 'application/octet-stream').slice(0, 120) });
+    return send(res, 201, { ok: true, id, path: `/api/vault/files/${id}`, name, size: bytes.length, type: String(input.type || 'application/octet-stream').slice(0, 120) });
   }
-  const vaultFile = url.pathname.match(/^\/vault\/files\/([0-9a-f-]{36})$/i);
+  const vaultFile = url.pathname.match(/^\/api\/vault\/files\/([0-9a-f-]{36})$/i);
   if (vaultFile && req.method === 'GET') {
-    const files = await import('node:fs/promises');
-    const entries = await files.readdir(VAULT_DIR);
+    const entries = await readdir(VAULT_DIR);
     const stored = entries.find(file => file.startsWith(vaultFile[1] + '.'));
     if (!stored) return send(res, 404, { error: 'File not found.' });
     const data = await readFile(path.join(VAULT_DIR, stored));

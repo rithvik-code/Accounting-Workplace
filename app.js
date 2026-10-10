@@ -1699,7 +1699,7 @@ function renderDocuments() {
 
 // ---------- DOCUMENT VIEWER, UPLOAD & SAVE-TO-FILE ----------
 const MAX_STORED_TEXT = 180 * 1024; // localStorage is a few MB shared with all practice data
-const VAULT_ENDPOINT = '/vault/save';
+const VAULT_ENDPOINT = '/api/vault/save';
 const DOC_CATEGORIES = ['Bank', 'GST', 'TDS', 'Expenses', 'Payroll', 'Financials', 'Client Paper', 'Other'];
 function docEscape(s) {
   return String(s == null ? '' : s)
