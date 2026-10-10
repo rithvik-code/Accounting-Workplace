@@ -9,10 +9,10 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
 const DB_FILE = path.join(DATA_DIR, 'workspace.json');
 const VAULT_DIR = path.join(ROOT, 'documents', 'vault');
-const PORT = Number(process.env.PORT || 4173);
+const PORT = 3000;
 const MAX_BODY = 12 * 1024 * 1024;
 const MAX_UPLOAD = 8 * 1024 * 1024;
-const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'auditLogs', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns', 'bankAccounts', 'advanceTaxPayments']);
+const COLLECTIONS = new Set(['clients', 'users', 'tasks', 'engagements', 'messages', 'documents', 'deadlines', 'payments', 'requests', 'announcements', 'auditLogs', 'knowledgeBase', 'gstRecons', 'reviews', 'calendarEvents', 'salesRegisters', 'deducteeEntries', 'payrollRuns', 'bankAccounts', 'advanceTaxPayments', 'timeEntries', 'proposals', 'teamsDispatches', 'teamsConfig']);
 const MEMBER_ROLES = new Set(['Partner', 'Manager', 'Senior', 'Accountant', 'Trainee']);
 
 await mkdir(DATA_DIR, { recursive: true });
@@ -105,8 +105,42 @@ function assistantMessages(question, context, history) {
   ];
 }
 async function assistantReply(question, context, history) {
-  const provider = String(process.env.AI_PROVIDER || 'ollama').toLowerCase();
+  const defaultProvider = process.env.GEMINI_API_KEY ? 'gemini' : (process.env.OPENAI_API_KEY ? 'openai' : 'local');
+  const provider = String(process.env.AI_PROVIDER || defaultProvider).toLowerCase();
   const messages = assistantMessages(question, context, history);
+  if (provider === 'gemini') {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error('AI_PROVIDER is gemini but GEMINI_API_KEY is not set.');
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const contents = [];
+    const sysMsg = messages.find(m => m.role === 'system');
+    for (const m of messages) {
+      if (m.role === 'system') continue;
+      contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] });
+    }
+    const reqBody = {
+      contents,
+      generationConfig: { temperature: 0.6 }
+    };
+    if (sysMsg) {
+      reqBody.systemInstruction = { parts: [{ text: sysMsg.content }] };
+    }
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(reqBody),
+        signal: AbortSignal.timeout(30000)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error?.message || `Gemini returned HTTP ${response.status}`);
+      const answer = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'I couldn’t form a response just now. Could you try asking another way?';
+      return { answer, mode: 'gemini' };
+    } catch (err) {
+      console.warn(`Gemini request failed; using local workspace fallback: ${err.message}`);
+      return { answer: fallbackReply(question, context, history), mode: 'local-fallback' };
+    }
+  }
   if (provider === 'openai') {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error('AI_PROVIDER is openai but OPENAI_API_KEY is not set.');
@@ -147,7 +181,8 @@ async function streamAssistant(input, res) {
   const supplied = Array.isArray(input.history) ? input.history.slice(-12).filter(m => ['user', 'assistant'].includes(m.role) && typeof m.content === 'string') : [];
   const history = supplied.length ? supplied : (conversations.get(id) || []);
   const context = input.workspace || workspace;
-  const provider = String(process.env.AI_PROVIDER || 'ollama').toLowerCase();
+  const defaultProvider = process.env.GEMINI_API_KEY ? 'gemini' : (process.env.OPENAI_API_KEY ? 'openai' : 'local');
+  const provider = String(process.env.AI_PROVIDER || defaultProvider).toLowerCase();
   let answer = '';
   const emit = value => res.write(`data: ${JSON.stringify(value)}\n\n`);
   try {
@@ -218,8 +253,10 @@ async function streamAssistant(input, res) {
 }
 async function api(req, res, url) {
   if (url.pathname === '/api/health') {
-    const provider = String(process.env.AI_PROVIDER || 'ollama').toLowerCase();
-    return send(res, 200, { ok: true, assistant: { provider, model: provider === 'openai' ? (process.env.OPENAI_MODEL || 'gpt-4o-mini') : (process.env.OLLAMA_MODEL || 'qwen2.5:3b') } });
+    const defaultProvider = process.env.GEMINI_API_KEY ? 'gemini' : (process.env.OPENAI_API_KEY ? 'openai' : 'local');
+    const provider = String(process.env.AI_PROVIDER || defaultProvider).toLowerCase();
+    const model = provider === 'gemini' ? (process.env.GEMINI_MODEL || 'gemini-2.5-flash') : (provider === 'openai' ? (process.env.OPENAI_MODEL || 'gpt-4o-mini') : (provider === 'ollama' ? (process.env.OLLAMA_MODEL || 'qwen2.5:3b') : 'local'));
+    return send(res, 200, { ok: true, assistant: { provider, model } });
   }
   if (url.pathname === '/api/workspace' && req.method === 'GET') return send(res, 200, workspace);
   if (url.pathname === '/api/workspace' && req.method === 'PUT') {
@@ -426,6 +463,243 @@ async function api(req, res, url) {
     if (!String(input.message || '').trim()) return send(res, 400, { error: 'A message is required.' });
     return await streamAssistant(input, res);
   }
+  if (url.pathname === '/api/teams/broadcast' && req.method === 'POST') {
+    const input = await body(req);
+    const channel = String(input.channel || '# General Practice').trim();
+    const title = String(input.title || 'Workplace Alert').trim();
+    const summary = String(input.summary || '').trim();
+    const cardType = String(input.cardType || 'GeneralAlert');
+    const priority = String(input.priority || 'Normal');
+    const author = String(input.author || 'System Bot');
+    const dispatchId = `td_${Date.now()}`;
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+    const configuredChannels = workspace.teamsConfig?.channels || [];
+    const matchedChannel = configuredChannels.find(c => c.name === channel);
+    const targetWebhook = input.webhookUrl || matchedChannel?.webhookUrl || workspace.teamsConfig?.webhookUrl;
+
+    let deliveryStatus = 'Delivered';
+    let deliveryDetails = 'Dispatched to Microsoft Teams channel';
+
+    if (targetWebhook && targetWebhook.startsWith('http')) {
+      try {
+        const teamsPayload = {
+          "@type": "MessageCard",
+          "@context": "http://schema.org/extensions",
+          "themeColor": "4B53BC",
+          "summary": summary || title,
+          "sections": [{
+            "activityTitle": `**${title}**`,
+            "activitySubtitle": `Rao & Co. Practice OS · ${channel}`,
+            "activityImage": "https://img.icons8.com/color/48/microsoft-teams.png",
+            "text": summary,
+            "facts": [
+              { "name": "Dispatched By", "value": author },
+              { "name": "Timestamp", "value": nowStr },
+              { "name": "Priority", "value": priority }
+            ],
+            "markdown": true
+          }],
+          "potentialAction": [
+            {
+              "@type": "OpenURI",
+              "name": "Open in Practice OS",
+              "targets": [{ "os": "default", "uri": "http://localhost:3000" }]
+            }
+          ]
+        };
+        const resp = await fetch(targetWebhook, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(teamsPayload),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (!resp.ok) {
+          deliveryStatus = 'Warning';
+          deliveryDetails = `Webhook returned HTTP ${resp.status} (payload logged)`;
+        }
+      } catch (err) {
+        deliveryStatus = 'Simulated/Logged';
+        deliveryDetails = `Offline/Demo mode (${err.message})`;
+      }
+    } else {
+      deliveryStatus = 'Delivered (Simulated)';
+      deliveryDetails = 'Logged to Teams Dispatch Feed · Set Webhook URL to send live to Microsoft 365';
+    }
+
+    const record = {
+      id: dispatchId,
+      channel,
+      time: nowStr,
+      title,
+      summary,
+      author,
+      priority,
+      status: deliveryStatus,
+      cardType,
+      details: deliveryDetails
+    };
+
+    if (!Array.isArray(workspace.teamsDispatches)) workspace.teamsDispatches = [];
+    workspace.teamsDispatches.unshift(record);
+
+    if (!Array.isArray(workspace.auditLogs)) workspace.auditLogs = [];
+    workspace.auditLogs.unshift({
+      id: 'al_' + Date.now(),
+      time: nowStr,
+      user: author,
+      action: 'Dispatched to Microsoft Teams',
+      target: `${channel}: ${title}`
+    });
+
+    await persist();
+    return send(res, 200, { ok: true, dispatch: record });
+  }
+  if (url.pathname === '/api/proposals/sign' && req.method === 'POST') {
+    const input = await body(req);
+    const proposalId = String(input.proposalId || '');
+    const proposals = Array.isArray(workspace.proposals) ? workspace.proposals : [];
+    const idx = proposals.findIndex(p => p.id === proposalId);
+    if (idx < 0) return send(res, 404, { error: 'Proposal not found.' });
+
+    const signerName = String(input.signerName || '').trim();
+    const signerEmail = String(input.signerEmail || '').trim();
+    const signerTitle = String(input.signerTitle || 'Authorized Signatory').trim();
+    if (!signerName) return send(res, 400, { error: 'Signer name is required.' });
+
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const hash = randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase();
+
+    proposals[idx].status = 'Signed & Executed';
+    proposals[idx].signedBy = `${signerName} (${signerTitle})`;
+    proposals[idx].signedEmail = signerEmail;
+    proposals[idx].signedAt = now;
+    proposals[idx].signatureHash = `SIG-${hash}-SHA256`;
+    proposals[idx].signatureDataUrl = input.signatureDataUrl || '';
+
+    // Auto-create onboarding task
+    if (!Array.isArray(workspace.tasks)) workspace.tasks = [];
+    const clientName = proposals[idx].clientName;
+    const newTask = {
+      id: `t_${Date.now()}`,
+      title: `Onboard: ${proposals[idx].title}`,
+      clientId: proposals[idx].clientId,
+      clientName,
+      status: 'In Progress',
+      priority: 'High',
+      dueDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      assignedTo: 'Rahul Verma',
+      category: 'Engagement Onboarding'
+    };
+    workspace.tasks.unshift(newTask);
+
+    if (!Array.isArray(workspace.auditLogs)) workspace.auditLogs = [];
+    workspace.auditLogs.unshift({
+      id: 'al_' + Date.now(),
+      time: now,
+      user: signerName,
+      action: 'Digitally Executed Engagement Proposal',
+      target: `${proposals[idx].proposalNo} (${clientName})`
+    });
+
+    if (!Array.isArray(workspace.teamsDispatches)) workspace.teamsDispatches = [];
+    workspace.teamsDispatches.unshift({
+      id: `td_${Date.now()}`,
+      channel: '# Billing & Invoicing',
+      time: now,
+      title: `Engagement Proposal Signed: ${proposals[idx].proposalNo}`,
+      summary: `${signerName} digitally signed the engagement letter for ${clientName}. Total contract value: ₹${(proposals[idx].totalValue || 0).toLocaleString('en-IN')}. Initial onboarding task auto-scheduled.`,
+      author: 'E-Sign Portal',
+      priority: 'High',
+      status: 'Delivered',
+      cardType: 'ProposalExecuted'
+    });
+
+    await persist();
+    return send(res, 200, { ok: true, proposal: proposals[idx], task: newTask });
+  }
+  if (url.pathname === '/api/pbc/chase' && req.method === 'POST') {
+    const input = await body(req);
+    const requestId = String(input.requestId || '');
+    const requests = Array.isArray(workspace.requests) ? workspace.requests : [];
+    const reqItem = requests.find(r => r.id === requestId);
+    if (!reqItem) return send(res, 404, { error: 'Request not found.' });
+
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    reqItem.lastReminderSent = now;
+    reqItem.reminderCount = (reqItem.reminderCount || 0) + 1;
+
+    if (!Array.isArray(workspace.teamsDispatches)) workspace.teamsDispatches = [];
+    workspace.teamsDispatches.unshift({
+      id: `td_${Date.now()}`,
+      channel: '# Audit & Assurance',
+      time: now,
+      title: `PBC Document Nudge Dispatched: ${reqItem.title}`,
+      summary: `Automated reminder #${reqItem.reminderCount} sent to ${reqItem.clientName} for pending document “${reqItem.title}”. Statutory due date: ${reqItem.dueDate}.`,
+      author: 'Automated PBC Chaser',
+      priority: 'Normal',
+      status: 'Delivered',
+      cardType: 'PBCReminder'
+    });
+
+    if (!Array.isArray(workspace.auditLogs)) workspace.auditLogs = [];
+    workspace.auditLogs.unshift({
+      id: 'al_' + Date.now(),
+      time: now,
+      user: 'PBC Automation',
+      action: 'Sent Document Reminder & Magic Link',
+      target: `${reqItem.clientName}: ${reqItem.title}`
+    });
+
+    await persist();
+    return send(res, 200, { ok: true, request: reqItem });
+  }
+  if (url.pathname === '/api/time/log' && req.method === 'POST') {
+    const input = await body(req);
+    const memberName = String(input.memberName || 'Rithvik Shah').trim();
+    const clientName = String(input.clientName || 'General Practice').trim();
+    const taskTitle = String(input.taskTitle || 'Accounting Services').trim();
+    const hours = Math.max(0.1, Number(input.hours || 0.5));
+    const rate = Number(input.rate || 180);
+    const billable = input.billable !== false;
+    const amount = billable ? Math.round(hours * rate) : 0;
+    const notes = String(input.notes || '').trim();
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 10);
+
+    const entry = {
+      id: `te_${Date.now()}`,
+      date: input.date || now,
+      memberId: input.memberId || 'u1',
+      memberName,
+      role: input.role || 'Partner',
+      clientId: input.clientId || 'c1',
+      clientName,
+      taskId: input.taskId || 't1',
+      taskTitle,
+      durationSec: Math.round(hours * 3600),
+      hours: Math.round(hours * 10) / 10,
+      rate,
+      amount,
+      billable,
+      notes,
+      status: 'Unbilled'
+    };
+
+    if (!Array.isArray(workspace.timeEntries)) workspace.timeEntries = [];
+    workspace.timeEntries.unshift(entry);
+
+    if (!Array.isArray(workspace.auditLogs)) workspace.auditLogs = [];
+    workspace.auditLogs.unshift({
+      id: 'al_' + Date.now(),
+      time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      user: memberName,
+      action: 'Logged Billable Time Entry',
+      target: `${clientName} · ${entry.hours} hrs (₹${amount})`
+    });
+
+    await persist();
+    return send(res, 201, { ok: true, entry });
+  }
   return send(res, 404, { error: 'API route not found.' });
 }
 
@@ -488,4 +762,4 @@ const server = http.createServer(async (req, res) => {
     res.end(contents);
   } catch (error) { send(res, error.status || 500, { error: error.message || 'Internal server error.' }); }
 });
-server.listen(PORT, '127.0.0.1', () => console.log(`Office System backend ready at http://127.0.0.1:${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Office System backend ready at http://0.0.0.0:${PORT}`));

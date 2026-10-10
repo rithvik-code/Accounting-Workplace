@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1b4d3e" />
   <title>Accounting Workplace — Operating System for Practice</title>
+  <meta name="description" content="Operating system for accounting practice with client management, tasks, deadlines, GST recon, general ledger, documents, and firm intelligence." />
+  <meta property="og:title" content="Accounting Workplace — Operating System for Practice" />
+  <meta property="og:description" content="Operating system for accounting practice with client management, tasks, deadlines, GST recon, general ledger, documents, and firm intelligence." />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -72,10 +75,20 @@
           <span class="nav-icon">📌</span> <span>Client Requests</span>
           <span class="nav-badge">1</span>
         </button>
+        <button class="nav-item" data-view="timesheets">
+          <span class="nav-icon">⏱️</span> <span>Time &amp; Billing (WIP)</span>
+        </button>
+        <button class="nav-item" data-view="proposals">
+          <span class="nav-icon">✍️</span> <span>Proposals &amp; E-Sign</span>
+        </button>
       </nav>
 
       <nav class="nav-group">
         <div class="nav-label">Intelligence &amp; Firm</div>
+        <button class="nav-item" data-view="teams-sync">
+          <span class="nav-icon" style="color:#4b53bc;">👥</span> <span>Microsoft Teams</span>
+          <span class="nav-badge" style="background:#eef0fb; color:#4b53bc; font-weight:700;">365</span>
+        </button>
         <button class="nav-item" data-view="knowledge">
           <span class="nav-icon">📚</span> <span>Knowledge Base</span>
         </button>
@@ -166,6 +179,25 @@
             <button class="portal-btn active" id="btn-mode-firm" data-mode="firm">Firm Workspace</button>
             <button class="portal-btn" id="btn-mode-portal" data-mode="portal">Client Portal</button>
           </div>
+
+          <!-- Persistent Billable Stopwatch Widget -->
+          <div class="topbar-timer-widget" id="topbar-timer-widget" title="Live Billable Stopwatch (Persistent Practice Timer)">
+            <span class="timer-dot" id="timer-dot"></span>
+            <span class="timer-clock" id="timer-clock">00:00:00</span>
+            <button class="timer-btn" id="btn-timer-toggle" title="Start / Pause billable timer">▶</button>
+            <button class="timer-btn timer-btn-stop" id="btn-timer-stop" title="Stop &amp; Log billable hours">⏹</button>
+            <div class="timer-context" id="timer-context" title="Active Client &amp; Rate Context">
+              <span class="timer-client-badge" id="timer-client-badge">ABC Mfg</span>
+              <span class="timer-rate-tag" id="timer-rate-tag">₹250/h</span>
+            </div>
+          </div>
+
+          <!-- Microsoft Teams Quick Launcher -->
+          <button class="teams-quick-btn" data-view="teams-sync" title="Microsoft Teams Connect Center">
+            <span class="teams-icon-glyph">👥</span>
+            <span class="teams-label">Teams</span>
+            <span class="teams-status-dot" title="Teams Webhook Active"></span>
+          </button>
 
           <button class="quick-search-btn" data-action="open-search">
             <span>🔎</span> <span>Search workspace...</span>

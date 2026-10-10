@@ -1,0 +1,13 @@
+{
+  "name": "accounting-workplace",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Operating System for Accounting Practice",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "build": "node --check server.mjs && node --check app.js",
+    "lint": "node --check server.mjs && node --check app.js"
+  },
+  "dependencies": {}
+}

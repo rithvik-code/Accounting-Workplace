@@ -1,0 +1,8 @@
+{
+  "name": "Accounting Workplace",
+  "description": "Operating system for accounting practice with client management, tasks, deadlines, GST recon, general ledger, documents, and firm intelligence.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

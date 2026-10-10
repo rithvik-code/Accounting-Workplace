@@ -719,6 +719,17 @@
   ],
   "tasks": [
     {
+      "id": "t_1791657586455",
+      "title": "Onboard: Accounting Modernization & Inventory Audit Engagement",
+      "clientId": "c2",
+      "clientName": "Sundar Retailers LLP",
+      "status": "In Progress",
+      "priority": "High",
+      "dueDate": "2026-10-17",
+      "assignedTo": "Rahul Verma",
+      "category": "Engagement Onboarding"
+    },
+    {
       "id": "t1",
       "title": "Bank Reconciliation – August 2026",
       "clientId": "c1",
@@ -892,7 +903,9 @@
           "done": false
         }
       ],
-      "status": "3 of 4 received"
+      "status": "3 of 4 received",
+      "lastReminderSent": "2026-10-10 18:39",
+      "reminderCount": 1
     },
     {
       "id": "r2",
@@ -956,6 +969,34 @@
     }
   ],
   "auditLogs": [
+    {
+      "id": "al_1791657586455",
+      "time": "2026-10-10 18:39",
+      "user": "Sundar Rajan",
+      "action": "Digitally Executed Engagement Proposal",
+      "target": "PROP-2026-092 (Sundar Retailers LLP)"
+    },
+    {
+      "id": "al_1791657575215",
+      "time": "2026-10-10 18:39",
+      "user": "PBC Automation",
+      "action": "Sent Document Reminder & Magic Link",
+      "target": "ABC Manufacturing Pvt Ltd: August Financial Documents Request"
+    },
+    {
+      "id": "al_1791657568280",
+      "time": "2026-10-10 18:39",
+      "user": "Rithvik Shah",
+      "action": "Logged Billable Time Entry",
+      "target": "ABC Manufacturing Pvt Ltd · 2.5 hrs (₹625)"
+    },
+    {
+      "id": "al_1791657564683",
+      "time": "2026-10-10 18:39",
+      "user": "Test Bot",
+      "action": "Dispatched to Microsoft Teams",
+      "target": "# Tax & Compliance: Test Audit Alert"
+    },
     {
       "id": "al_1791645205951",
       "time": "2026-10-10 15:13",
@@ -1105,5 +1146,266 @@
         "Partner grants final sign-off before client delivery."
       ]
     }
-  ]
+  ],
+  "teamsConfig": {
+    "enabled": true,
+    "tenantName": "Rao & Co. Practice Group",
+    "webhookUrl": "https://outlook.office.com/webhook/rao-accounting-teams/incoming",
+    "channels": [
+      {
+        "id": "ch_tax",
+        "name": "# Tax & Compliance",
+        "purpose": "Statutory deadlines, GST recon mismatches, advance tax alerts",
+        "webhookUrl": "https://outlook.office.com/webhook/rao-accounting-teams/tax",
+        "active": true
+      },
+      {
+        "id": "ch_audit",
+        "name": "# Audit & Assurance",
+        "purpose": "PBC document uploads, partner reviews, sign-off requests",
+        "webhookUrl": "https://outlook.office.com/webhook/rao-accounting-teams/audit",
+        "active": true
+      },
+      {
+        "id": "ch_general",
+        "name": "# General Practice",
+        "purpose": "Daily standups, firm announcements, client onboarding",
+        "webhookUrl": "https://outlook.office.com/webhook/rao-accounting-teams/general",
+        "active": true
+      },
+      {
+        "id": "ch_billing",
+        "name": "# Billing & Invoicing",
+        "purpose": "Signed proposals, WIP thresholds, fee realizations",
+        "webhookUrl": "https://outlook.office.com/webhook/rao-accounting-teams/billing",
+        "active": true
+      }
+    ],
+    "triggers": {
+      "pbcUpload": true,
+      "deadline48h": true,
+      "partnerReview": true,
+      "proposalSigned": true
+    }
+  },
+  "teamsDispatches": [
+    {
+      "id": "td_1791657586455",
+      "channel": "# Billing & Invoicing",
+      "time": "2026-10-10 18:39",
+      "title": "Engagement Proposal Signed: PROP-2026-092",
+      "summary": "Sundar Rajan digitally signed the engagement letter for Sundar Retailers LLP. Total contract value: ₹1,20,000. Initial onboarding task auto-scheduled.",
+      "author": "E-Sign Portal",
+      "priority": "High",
+      "status": "Delivered",
+      "cardType": "ProposalExecuted"
+    },
+    {
+      "id": "td_1791657575215",
+      "channel": "# Audit & Assurance",
+      "time": "2026-10-10 18:39",
+      "title": "PBC Document Nudge Dispatched: August Financial Documents Request",
+      "summary": "Automated reminder #1 sent to ABC Manufacturing Pvt Ltd for pending document “August Financial Documents Request”. Statutory due date: 2026-09-08.",
+      "author": "Automated PBC Chaser",
+      "priority": "Normal",
+      "status": "Delivered",
+      "cardType": "PBCReminder"
+    },
+    {
+      "id": "td_1791657564611",
+      "channel": "# Tax & Compliance",
+      "time": "2026-10-10 18:39",
+      "title": "Test Audit Alert",
+      "summary": "Testing adaptive card broadcast",
+      "author": "Test Bot",
+      "priority": "Normal",
+      "status": "Delivered",
+      "cardType": "GeneralAlert",
+      "details": "Dispatched to Microsoft Teams channel"
+    },
+    {
+      "id": "td_1",
+      "channel": "# Tax & Compliance",
+      "time": "2026-10-09 14:30",
+      "title": "GST GSTR-3B Statutory Deadline Warning",
+      "summary": "Deadline in 48 hours for ABC Manufacturing Pvt Ltd. Purchase register is 92% matched against 2B portal data.",
+      "author": "Compliance Bot",
+      "priority": "High",
+      "status": "Delivered",
+      "cardType": "DeadlineAlert",
+      "details": "Sent to Microsoft Teams incoming webhook"
+    },
+    {
+      "id": "td_2",
+      "channel": "# Audit & Assurance",
+      "time": "2026-10-10 09:15",
+      "title": "PBC Upload: Bank Statement Aug 2026",
+      "summary": "Client Deepak Polymers fulfilled document request 'Bank Statement August 2026'. Ready for auditor reconciliation.",
+      "author": "Client Portal",
+      "priority": "Normal",
+      "status": "Delivered",
+      "cardType": "PBCFulfillment",
+      "details": "Sent to Microsoft Teams incoming webhook"
+    },
+    {
+      "id": "td_3",
+      "channel": "# Billing & Invoicing",
+      "time": "2026-10-08 16:45",
+      "title": "Proposal Executed: PROP-2026-089",
+      "summary": "Anand Kumar (Director) digitally signed engagement retainer for ABC Manufacturing Pvt Ltd. Value: ₹5,40,000.",
+      "author": "E-Sign Portal",
+      "priority": "High",
+      "status": "Delivered",
+      "cardType": "ProposalExecuted",
+      "details": "Sent to Microsoft Teams incoming webhook"
+    }
+  ],
+  "timeEntries": [
+    {
+      "id": "te_1791657568280",
+      "date": "2026-10-10",
+      "memberId": "u1",
+      "memberName": "Rithvik Shah",
+      "role": "Partner",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "taskId": "t1",
+      "taskTitle": "Statutory Audit Review",
+      "durationSec": 9000,
+      "hours": 2.5,
+      "rate": 250,
+      "amount": 625,
+      "billable": true,
+      "notes": "Review of ledger balances",
+      "status": "Unbilled"
+    },
+    {
+      "id": "te_1",
+      "date": "2026-10-10",
+      "memberId": "u1",
+      "memberName": "Rithvik Shah",
+      "role": "Partner",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "taskId": "t1",
+      "taskTitle": "Final GSTR-3B Tax Sign-off & Audit Review",
+      "durationSec": 3600,
+      "hours": 1,
+      "rate": 250,
+      "amount": 250,
+      "billable": true,
+      "notes": "Partner review of purchase reconciliation and verified disputed ITC adjustments.",
+      "status": "Unbilled"
+    },
+    {
+      "id": "te_2",
+      "date": "2026-10-10",
+      "memberId": "u2",
+      "memberName": "Rahul Verma",
+      "role": "Manager",
+      "clientId": "c2",
+      "clientName": "Sundar Retailers LLP",
+      "taskId": "t2",
+      "taskTitle": "Ledger Audit & Bank Reconciliation",
+      "durationSec": 7200,
+      "hours": 2,
+      "rate": 180,
+      "amount": 360,
+      "billable": true,
+      "notes": "Reconciled HDFC bank statement transactions against general ledger journal entries.",
+      "status": "Unbilled"
+    },
+    {
+      "id": "te_3",
+      "date": "2026-10-09",
+      "memberId": "u3",
+      "memberName": "Priya Sundaram",
+      "role": "Senior",
+      "clientId": "c3",
+      "clientName": "Zenith Logistics Ltd",
+      "taskId": "t3",
+      "taskTitle": "TDS 194C Contractor Deductions Verification",
+      "durationSec": 5400,
+      "hours": 1.5,
+      "rate": 130,
+      "amount": 195,
+      "billable": true,
+      "notes": "Checked lower withholding certificates and cross-verified PAN validations.",
+      "status": "Invoiced"
+    },
+    {
+      "id": "te_4",
+      "date": "2026-10-08",
+      "memberId": "u4",
+      "memberName": "Arjun Patel",
+      "role": "Accountant",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "taskId": "t4",
+      "taskTitle": "GST 2B Match Discrepancy Reconciliation",
+      "durationSec": 10800,
+      "hours": 3,
+      "rate": 95,
+      "amount": 285,
+      "billable": true,
+      "notes": "Traced 14 unmatched invoices and generated vendor notice schedule.",
+      "status": "Unbilled"
+    }
+  ],
+  "proposals": [
+    {
+      "id": "prop_1",
+      "proposalNo": "PROP-2026-089",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "title": "Statutory Audit, GST & TDS Compliance Retainer FY 2026-27",
+      "feeType": "Monthly Retainer",
+      "retainerMonthly": 45000,
+      "totalValue": 540000,
+      "validUntil": "2026-10-31",
+      "status": "Signed & Executed",
+      "scope": "Monthly GSTR-1 & 3B filing, quarterly TDS 26Q/24Q, annual statutory audit, advance tax computation, tax notice representation.",
+      "signedBy": "Anand Kumar (Director)",
+      "signedEmail": "anand.kumar@abcmfg.com",
+      "signedAt": "2026-10-08 16:45",
+      "signatureHash": "SIG-7A8B9C2D-SHA256",
+      "signatureDataUrl": ""
+    },
+    {
+      "id": "prop_2",
+      "proposalNo": "PROP-2026-092",
+      "clientId": "c2",
+      "clientName": "Sundar Retailers LLP",
+      "title": "Accounting Modernization & Inventory Audit Engagement",
+      "feeType": "Fixed Milestone",
+      "retainerMonthly": 0,
+      "totalValue": 120000,
+      "validUntil": "2026-10-25",
+      "status": "Signed & Executed",
+      "scope": "Inventory stock count reconciliation, chart of accounts migration, internal financial control review, management reporting pack.",
+      "signedBy": "Sundar Rajan (Managing Partner)",
+      "signedEmail": "sundar@retailers.com",
+      "signedAt": "2026-10-10 18:39",
+      "signatureHash": "SIG-E51C44842E164FB2-SHA256",
+      "signatureDataUrl": ""
+    },
+    {
+      "id": "prop_3",
+      "proposalNo": "PROP-2026-095",
+      "clientId": "c4",
+      "clientName": "Apex Healthtech Pvt Ltd",
+      "title": "Transfer Pricing Study & Cross-Border Advisory",
+      "feeType": "Hourly + Cap",
+      "retainerMonthly": 0,
+      "totalValue": 280000,
+      "validUntil": "2026-11-15",
+      "status": "Draft",
+      "scope": "Form 3CEB certification, benchmarking study against global comparables, local file master file documentation.",
+      "signedBy": null,
+      "signedEmail": null,
+      "signedAt": null
+    }
+  ],
+  "chartOfAccounts": [],
+  "journalEntries": []
 }

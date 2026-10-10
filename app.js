@@ -502,8 +502,207 @@ const seedData = {
         'Partner grants final sign-off before client delivery.'
       ]
     }
+  ],
+  teamsConfig: {
+    enabled: true,
+    tenantName: 'Rao & Co. Practice Group',
+    webhookUrl: 'https://outlook.office.com/webhook/rao-accounting-teams/incoming',
+    channels: [
+      { id: 'ch_tax', name: '# Tax & Compliance', purpose: 'Statutory deadlines, GST recon mismatches, advance tax alerts', webhookUrl: 'https://outlook.office.com/webhook/rao-accounting-teams/tax', active: true },
+      { id: 'ch_audit', name: '# Audit & Assurance', purpose: 'PBC document uploads, partner reviews, sign-off requests', webhookUrl: 'https://outlook.office.com/webhook/rao-accounting-teams/audit', active: true },
+      { id: 'ch_general', name: '# General Practice', purpose: 'Daily standups, firm announcements, client onboarding', webhookUrl: 'https://outlook.office.com/webhook/rao-accounting-teams/general', active: true },
+      { id: 'ch_billing', name: '# Billing & Invoicing', purpose: 'Signed proposals, WIP thresholds, fee realizations', webhookUrl: 'https://outlook.office.com/webhook/rao-accounting-teams/billing', active: true }
+    ],
+    triggers: {
+      pbcUpload: true,
+      deadline48h: true,
+      partnerReview: true,
+      proposalSigned: true
+    }
+  },
+  teamsDispatches: [
+    {
+      id: 'td_1',
+      channel: '# Tax & Compliance',
+      time: '2026-10-09 14:30',
+      title: 'GST GSTR-3B Statutory Deadline Warning',
+      summary: 'Deadline in 48 hours for ABC Manufacturing Pvt Ltd. Purchase register is 92% matched against 2B portal data.',
+      author: 'Compliance Bot',
+      priority: 'High',
+      status: 'Delivered',
+      cardType: 'DeadlineAlert',
+      details: 'Sent to Microsoft Teams incoming webhook'
+    },
+    {
+      id: 'td_2',
+      channel: '# Audit & Assurance',
+      time: '2026-10-10 09:15',
+      title: 'PBC Upload: Bank Statement Aug 2026',
+      summary: 'Client Deepak Polymers fulfilled document request “Bank Statement August 2026”. Ready for auditor reconciliation.',
+      author: 'Client Portal',
+      priority: 'Normal',
+      status: 'Delivered',
+      cardType: 'PBCFulfillment',
+      details: 'Sent to Microsoft Teams incoming webhook'
+    },
+    {
+      id: 'td_3',
+      channel: '# Billing & Invoicing',
+      time: '2026-10-08 16:45',
+      title: 'Proposal Executed: PROP-2026-089',
+      summary: 'Anand Kumar (Director) digitally signed engagement retainer for ABC Manufacturing Pvt Ltd. Value: ₹5,40,000.',
+      author: 'E-Sign Portal',
+      priority: 'High',
+      status: 'Delivered',
+      cardType: 'ProposalExecuted',
+      details: 'Sent to Microsoft Teams incoming webhook'
+    }
+  ],
+  timeEntries: [
+    {
+      id: 'te_1',
+      date: '2026-10-10',
+      memberId: 'u1',
+      memberName: 'Rithvik Shah',
+      role: 'Partner',
+      clientId: 'c1',
+      clientName: 'ABC Manufacturing Pvt Ltd',
+      taskId: 't1',
+      taskTitle: 'Final GSTR-3B Tax Sign-off & Audit Review',
+      durationSec: 3600,
+      hours: 1.0,
+      rate: 250,
+      amount: 250,
+      billable: true,
+      notes: 'Partner review of purchase reconciliation and verified disputed ITC adjustments.',
+      status: 'Unbilled'
+    },
+    {
+      id: 'te_2',
+      date: '2026-10-10',
+      memberId: 'u2',
+      memberName: 'Rahul Verma',
+      role: 'Manager',
+      clientId: 'c2',
+      clientName: 'Sundar Retailers LLP',
+      taskId: 't2',
+      taskTitle: 'Ledger Audit & Bank Reconciliation',
+      durationSec: 7200,
+      hours: 2.0,
+      rate: 180,
+      amount: 360,
+      billable: true,
+      notes: 'Reconciled HDFC bank statement transactions against general ledger journal entries.',
+      status: 'Unbilled'
+    },
+    {
+      id: 'te_3',
+      date: '2026-10-09',
+      memberId: 'u3',
+      memberName: 'Priya Sundaram',
+      role: 'Senior',
+      clientId: 'c3',
+      clientName: 'Zenith Logistics Ltd',
+      taskId: 't3',
+      taskTitle: 'TDS 194C Contractor Deductions Verification',
+      durationSec: 5400,
+      hours: 1.5,
+      rate: 130,
+      amount: 195,
+      billable: true,
+      notes: 'Checked lower withholding certificates and cross-verified PAN validations.',
+      status: 'Invoiced'
+    },
+    {
+      id: 'te_4',
+      date: '2026-10-08',
+      memberId: 'u4',
+      memberName: 'Arjun Patel',
+      role: 'Accountant',
+      clientId: 'c1',
+      clientName: 'ABC Manufacturing Pvt Ltd',
+      taskId: 't4',
+      taskTitle: 'GST 2B Match Discrepancy Reconciliation',
+      durationSec: 10800,
+      hours: 3.0,
+      rate: 95,
+      amount: 285,
+      billable: true,
+      notes: 'Traced 14 unmatched invoices and generated vendor notice schedule.',
+      status: 'Unbilled'
+    }
+  ],
+  proposals: [
+    {
+      id: 'prop_1',
+      proposalNo: 'PROP-2026-089',
+      clientId: 'c1',
+      clientName: 'ABC Manufacturing Pvt Ltd',
+      title: 'Statutory Audit, GST & TDS Compliance Retainer FY 2026-27',
+      feeType: 'Monthly Retainer',
+      retainerMonthly: 45000,
+      totalValue: 540000,
+      validUntil: '2026-10-31',
+      status: 'Signed & Executed',
+      scope: 'Monthly GSTR-1 & 3B filing, quarterly TDS 26Q/24Q, annual statutory audit, advance tax computation, tax notice representation.',
+      signedBy: 'Anand Kumar (Director)',
+      signedEmail: 'anand.kumar@abcmfg.com',
+      signedAt: '2026-10-08 16:45',
+      signatureHash: 'SIG-7A8B9C2D-SHA256',
+      signatureDataUrl: ''
+    },
+    {
+      id: 'prop_2',
+      proposalNo: 'PROP-2026-092',
+      clientId: 'c2',
+      clientName: 'Sundar Retailers LLP',
+      title: 'Accounting Modernization & Inventory Audit Engagement',
+      feeType: 'Fixed Milestone',
+      retainerMonthly: 0,
+      totalValue: 120000,
+      validUntil: '2026-10-25',
+      status: 'Out for Signature',
+      scope: 'Inventory stock count reconciliation, chart of accounts migration, internal financial control review, management reporting pack.',
+      signedBy: null,
+      signedEmail: null,
+      signedAt: null
+    },
+    {
+      id: 'prop_3',
+      proposalNo: 'PROP-2026-095',
+      clientId: 'c4',
+      clientName: 'Apex Healthtech Pvt Ltd',
+      title: 'Transfer Pricing Study & Cross-Border Advisory',
+      feeType: 'Hourly + Cap',
+      retainerMonthly: 0,
+      totalValue: 280000,
+      validUntil: '2026-11-15',
+      status: 'Draft',
+      scope: 'Form 3CEB certification, benchmarking study against global comparables, local file master file documentation.',
+      signedBy: null,
+      signedEmail: null,
+      signedAt: null
+    }
   ]
 };
+
+function formatTimerSec(sec) {
+  const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+  const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+  const s = String(sec % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
+function roleHourlyRate(role) {
+  switch (role) {
+    case 'Partner': return 250;
+    case 'Manager': return 180;
+    case 'Senior': return 130;
+    case 'Accountant': return 95;
+    case 'Trainee': return 60;
+    default: return 120;
+  }
+}
 
 // Application State Management
 class AppState {
@@ -534,6 +733,67 @@ class AppState {
     this.ledgerStartDate = `${new Date().getFullYear()}-01-01`;
     this.ledgerEndDate = new Date().toISOString().slice(0, 10);
     this.journalDraft = [ledgerBlankLine(), ledgerBlankLine()];
+
+    // Teams & Modern Work Extensions
+    if (!this.data.teamsConfig) this.data.teamsConfig = seedData.teamsConfig;
+    if (!Array.isArray(this.data.teamsDispatches)) this.data.teamsDispatches = seedData.teamsDispatches || [];
+    if (!Array.isArray(this.data.timeEntries)) this.data.timeEntries = seedData.timeEntries || [];
+    if (!Array.isArray(this.data.proposals)) this.data.proposals = seedData.proposals || [];
+
+    // Live Billable Timer (Topbar Stopwatch)
+    this.timerRunning = false;
+    this.timerSeconds = 0;
+    this.timerClientId = 'c1';
+    this.timerTaskId = 't1';
+    this.timerBillable = true;
+    this.timerNotes = '';
+    this.timerInterval = null;
+    this.timesheetFilterClient = 'all';
+    this.timesheetFilterStatus = 'all';
+  }
+
+  startTimer() {
+    if (this.timerRunning) return;
+    this.timerRunning = true;
+    const widget = document.getElementById('topbar-timer-widget');
+    if (widget) widget.classList.add('timer-active');
+    const toggleBtn = document.getElementById('btn-timer-toggle');
+    if (toggleBtn) toggleBtn.textContent = '⏸';
+    this.timerInterval = setInterval(() => {
+      this.timerSeconds++;
+      this.updateTimerDisplay();
+    }, 1000);
+  }
+
+  pauseTimer() {
+    this.timerRunning = false;
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    this.timerInterval = null;
+    const widget = document.getElementById('topbar-timer-widget');
+    if (widget) widget.classList.remove('timer-active');
+    const toggleBtn = document.getElementById('btn-timer-toggle');
+    if (toggleBtn) toggleBtn.textContent = '▶';
+  }
+
+  resetTimer() {
+    this.pauseTimer();
+    this.timerSeconds = 0;
+    this.updateTimerDisplay();
+  }
+
+  updateTimerDisplay() {
+    const el = document.getElementById('timer-clock');
+    if (el) el.textContent = formatTimerSec(this.timerSeconds);
+    const clientBadge = document.getElementById('timer-client-badge');
+    const client = this.data.clients.find(c => c.id === this.timerClientId);
+    if (clientBadge && client) {
+      clientBadge.textContent = client.shortName || client.code || client.name.slice(0, 10);
+    }
+    const rateTag = document.getElementById('timer-rate-tag');
+    if (rateTag) {
+      const rate = roleHourlyRate(this.activeRole);
+      rateTag.textContent = this.timerBillable ? `₹${rate}/h` : 'Non-bill';
+    }
   }
 
   loadFromStorage() {
@@ -837,7 +1097,10 @@ const NAV_ACCESS = {
   games: ALL_ROLES,
   'game-sudoku': ALL_ROLES,
   'game-drill': ALL_ROLES,
-  'game-gst': ALL_ROLES
+  'game-gst': ALL_ROLES,
+  'teams-sync': ALL_ROLES,
+  timesheets: ALL_ROLES,
+  proposals: ALL_ROLES
 };
 
 const ACTION_ACCESS = {
@@ -874,7 +1137,10 @@ const VIEW_LABELS = {
   announcements: 'Announcements', reviews: 'Reviews & Approvals', firmsettings: 'Firm Settings',
   team: 'Team Members',
   workspace: 'the workspace switcher', gstrecon: 'GST reconciliation', deadlines: 'the Deadline Center',
-  requests: 'Client Requests'
+  requests: 'Client Requests',
+  'teams-sync': 'Microsoft Teams',
+  timesheets: 'Time & Billing',
+  proposals: 'Proposals & E-Sign'
 };
 
 function currentUser() {
@@ -1154,14 +1420,24 @@ function renderCommunication() {
       <div class="page-header-title">
         <div class="eyebrow">Firm Communication</div>
         <h1>Messages &amp; Discussions</h1>
-        <p>Direct chats, specialized work groups, and client-attached discussions.</p>
+        <p>Direct chats, specialized work groups, client-attached discussions, and Microsoft Teams broadcast channels.</p>
       </div>
-      <button class="btn-primary" data-action="new-chat">＋ New Conversation</button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-secondary" data-action="teams-meeting">📞 Teams Huddle</button>
+        <button class="btn-primary" data-action="new-chat">＋ New Conversation</button>
+      </div>
     </div>
 
     <div class="chat-grid">
       <!-- Sidebar Channels & DMs -->
       <div class="chat-sidebar">
+        <div class="chat-group-title" style="color:#4b53bc;">Microsoft Teams Channels</div>
+        ${['# Tax & Compliance', '# Audit & Assurance', '# General Practice', '# Billing & Invoicing'].map(ch => `
+          <div class="chat-channel-item ${state.activeChatChannel === ch ? 'active' : ''}" data-select-channel="${ch}">
+            <span>👥</span> <span style="font-weight:600; color:#3b4096;">${ch}</span>
+          </div>
+        `).join('')}
+
         <div class="chat-group-title">Work Groups</div>
         ${['# General', '# Tax', '# Audit', '# Management'].map(ch => `
           <div class="chat-channel-item ${state.activeChatChannel === ch ? 'active' : ''}" data-select-channel="${ch}">
@@ -1189,14 +1465,15 @@ function renderCommunication() {
         <div class="chat-main-header">
           <div>
             <div style="font-weight:700; font-size:15px; color:var(--forest);">${state.activeChatChannel}</div>
-            <div style="font-size:11px; color:var(--ink-muted);">Contextual discussion thread attached to practice work</div>
+            <div style="font-size:11px; color:var(--ink-muted);">Contextual discussion thread attached to practice work and synced with Microsoft Teams</div>
           </div>
+          <button class="btn-secondary" data-action="teams-post-alert" style="font-size:11px; padding:4px 10px;">Post Card to Teams</button>
         </div>
 
         <div class="chat-messages-container" id="chat-stream">
           ${channelMsgs.length === 0 ? `
             <div style="text-align:center; padding: 40px; color:var(--ink-muted);">
-              No messages in <strong>${state.activeChatChannel}</strong> yet. Start the discussion below.
+              No messages in <strong>${state.activeChatChannel}</strong> yet. Start the discussion below or post from Teams.
             </div>
           ` : channelMsgs.map(m => `
             <div class="msg-row">
@@ -1205,6 +1482,7 @@ function renderCommunication() {
                 <div class="msg-header">
                   <span class="msg-author">${m.author}</span>
                   <span class="msg-time">${m.time}</span>
+                  <button class="btn-ghost" data-action="broadcast-msg-teams" data-msg-id="${m.id}" title="Broadcast this update to Microsoft Teams" style="padding:2px 6px; font-size:10.5px; color:#4b53bc; margin-left:auto;">↗ Teams</button>
                 </div>
                 <div class="msg-text">${m.text}</div>
               </div>
@@ -1215,6 +1493,7 @@ function renderCommunication() {
         <div class="chat-composer-box">
           <form id="chat-composer-form" class="chat-composer-form">
             <input class="chat-input" id="chat-input-text" placeholder="Write a message in ${state.activeChatChannel}..." required />
+            <button class="btn-secondary" type="button" id="btn-broadcast-teams" title="Broadcast to Microsoft Teams" style="color:#4b53bc; font-weight:600;">↗ Teams</button>
             <button class="btn-primary" type="submit">Send</button>
           </form>
         </div>
@@ -2282,32 +2561,47 @@ function renderRequests() {
     <div class="page-header">
       <div class="page-header-title">
         <div class="eyebrow">Client Portal Integration</div>
-        <h1>Client Document Requests</h1>
-        <p>Send automated checklists to clients and track received files.</p>
+        <h1>Client Document Requests (PBC Tracker)</h1>
+        <p>Send frictionless magic-link checklists to clients, trigger automated Teams reminders, and auto-extract uploaded files.</p>
       </div>
       <button class="btn-primary" data-action="new-request">＋ New Client Request</button>
     </div>
 
     <div class="card">
       <div class="card-title-row">
-        <div class="card-title">Active Requests Tracking</div>
+        <div class="card-title">Active Requests &amp; Chasing Schedule</div>
+        <span style="font-size:11px; color:var(--ink-muted);">Zero-login magic links enabled</span>
       </div>
       <div style="display:flex; flex-direction:column; gap:16px;">
         ${state.data.requests.map(r => `
           <div style="border:1px solid var(--line); border-radius:8px; padding:18px; background:var(--surface-subtle);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
               <div>
                 <h3 style="font-size:15px; font-weight:700; color:var(--forest);">${memberHtml(r.title)}</h3>
-                <div style="font-size:11.5px; color:var(--ink-muted); margin-top:2px;">Client: <strong>${r.clientName}</strong> · Due: <strong>${r.dueDate}</strong></div>
+                <div style="font-size:11.5px; color:var(--ink-muted); margin-top:2px;">
+                  Client: <strong>${memberHtml(r.clientName)}</strong> · Due: <strong>${memberHtml(r.dueDate)}</strong>
+                  ${r.lastReminderSent ? `<span style="margin-left:8px; color:var(--emerald);">· Nudged ${r.reminderCount || 1}x (last ${memberHtml(r.lastReminderSent)})</span>` : ''}
+                </div>
               </div>
-              ${renderBadge(r.status)}
+              <div style="display:flex; align-items:center; gap:8px;">
+                ${renderBadge(r.status)}
+                <button class="btn-secondary" data-action="copy-magic-link" data-client-id="${r.clientId}" data-req-id="${r.id}" title="Copy one-click client magic link" style="font-size:11px; padding:5px 9px;">🔗 Copy Magic Link</button>
+                <button class="btn-secondary" data-action="send-pbc-reminder" data-req-id="${r.id}" title="Nudge client via Microsoft Teams &amp; Email" style="font-size:11px; padding:5px 9px;">📢 Nudge Client</button>
+              </div>
             </div>
 
             <div style="margin-top:14px; display:flex; flex-direction:column; gap:6px;">
               ${r.items.map(item => `
-                <div style="display:flex; align-items:center; gap:8px; font-size:12.5px;">
-                  <span>${item.done ? '✅' : '🔴'}</span>
-                  <span>${memberHtml(item.label)}</span>
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 8px; background:var(--surface); border:1px solid var(--line-light); border-radius:4px; font-size:12.5px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span>${item.done ? '✅' : '🔴'}</span>
+                    <span>${memberHtml(item.label)}</span>
+                  </div>
+                  ${item.done ? `
+                    <button class="btn-ghost" data-action="open-ocr-preview" data-req-title="${memberHtml(item.label)}" style="font-size:11px; padding:2px 6px; color:var(--emerald);">📄 OCR Data</button>
+                  ` : `
+                    <span style="font-size:10.5px; color:var(--ink-muted);">Awaiting client upload</span>
+                  `}
                 </div>
               `).join('')}
             </div>
@@ -4705,6 +4999,398 @@ function renderGames() {
       </div>
     </div>`;
 }
+
+// 22. MICROSOFT TEAMS & 365 PRACTICE HUB
+function renderTeamsSync() {
+  const cfg = state.data.teamsConfig || { channels: [], triggers: {} };
+  const dispatches = Array.isArray(state.data.teamsDispatches) ? state.data.teamsDispatches : [];
+  const latestDispatch = dispatches[0] || {
+    title: 'GST GSTR-3B Statutory Deadline Warning',
+    channel: '# Tax & Compliance',
+    author: 'Compliance Bot',
+    time: new Date().toISOString().replace('T', ' ').slice(0, 16),
+    summary: 'Statutory deadline approaching in 48 hours for ABC Manufacturing Pvt Ltd. All reconciliations ready for review.',
+    priority: 'High',
+    status: 'Delivered'
+  };
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Enterprise Collaboration</div>
+        <h1>Microsoft Teams &amp; 365 Practice Hub</h1>
+        <p>Live webhook broadcasts, Adaptive Cards, channel listeners, and one-click Teams huddles for the practice.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-secondary" data-action="teams-meeting">📞 Schedule Teams Meeting</button>
+        <button class="btn-primary" data-action="teams-post-alert" style="background:#4b53bc;">＋ Post Alert to Teams</button>
+      </div>
+    </div>
+
+    <!-- Hero Banner with Tenant Status -->
+    <div class="teams-hero-banner">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span style="font-size:22px;">👥</span>
+          <span style="font-weight:700; font-size:12px; letter-spacing:1px; text-transform:uppercase; background:rgba(255,255,255,0.2); padding:3px 8px; border-radius:4px;">Connected Microsoft 365 Tenant</span>
+        </div>
+        <div class="teams-hero-title">${memberHtml(cfg.tenantName || 'Rao & Co. Practice Group')}</div>
+        <div class="teams-hero-desc">Incoming webhooks are actively listening. Automated adaptive cards notify partners and team channels whenever client files are uploaded, statutory deadlines approach, or proposals are signed.</div>
+        <div class="teams-hero-meta">
+          <span>● Tenant ID: ms-rao-cpa-blr</span>
+          <span>● Status: 4 Channels Active</span>
+          <span>● Latency: &lt;38ms</span>
+        </div>
+      </div>
+      <div class="teams-hero-actions">
+        <button class="teams-hero-btn" data-action="teams-test-ping">⚡ Test Broadcast Ping</button>
+        <button class="teams-hero-btn teams-hero-btn-outline" data-action="teams-config-webhooks">⚙️ Configure Webhooks</button>
+      </div>
+    </div>
+
+    <div class="teams-grid-layout">
+      <!-- Left Column: Configured Channels & Dispatch History -->
+      <div>
+        <div class="teams-channels-card" style="margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div style="font-size:14px; font-weight:700; color:var(--forest);">Active Practice Channels</div>
+            <span style="font-size:11px; color:var(--ink-muted);">Microsoft Teams Webhook Mappings</span>
+          </div>
+          ${(cfg.channels || []).map(ch => `
+            <div class="teams-channel-row">
+              <div class="teams-channel-info">
+                <div class="teams-channel-name">${memberHtml(ch.name)}</div>
+                <div class="teams-channel-purpose">${memberHtml(ch.purpose)}</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="teams-webhook-status">● Listening</span>
+                <button class="btn-ghost" data-action="teams-quick-send" data-channel="${memberHtml(ch.name)}" style="padding:4px 8px; font-size:11px;">Send Card</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Automated Broadcast Triggers -->
+        <div class="teams-channels-card" style="margin-bottom:24px;">
+          <div style="font-size:14px; font-weight:700; color:var(--forest); margin-bottom:12px;">Automated Rule Triggers</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div style="padding:12px; background:var(--cream); border-radius:var(--radius-sm); border:1px solid var(--line-light);">
+              <div style="font-weight:700; font-size:12.5px; margin-bottom:4px;">📥 Client Document Upload (PBC)</div>
+              <div style="font-size:11px; color:var(--ink-muted); margin-bottom:8px;">Dispatches card to #Audit when client fulfills requested checklist item.</div>
+              <span style="color:#1f7a4c; font-weight:700; font-size:10.5px;">✓ ENABLED</span>
+            </div>
+            <div style="padding:12px; background:var(--cream); border-radius:var(--radius-sm); border:1px solid var(--line-light);">
+              <div style="font-weight:700; font-size:12.5px; margin-bottom:4px;">⏱️ 48h Statutory Deadline Alert</div>
+              <div style="font-size:11px; color:var(--ink-muted); margin-bottom:8px;">Broadcasts countdown card to #Tax for GST/TDS/Advance Tax dates.</div>
+              <span style="color:#1f7a4c; font-weight:700; font-size:10.5px;">✓ ENABLED</span>
+            </div>
+            <div style="padding:12px; background:var(--cream); border-radius:var(--radius-sm); border:1px solid var(--line-light);">
+              <div style="font-weight:700; font-size:12.5px; margin-bottom:4px;">✍️ Proposal Executed / Retainer Won</div>
+              <div style="font-size:11px; color:var(--ink-muted); margin-bottom:8px;">Alerts #Billing with signed agreement value and onboard schedule.</div>
+              <span style="color:#1f7a4c; font-weight:700; font-size:10.5px;">✓ ENABLED</span>
+            </div>
+            <div style="padding:12px; background:var(--cream); border-radius:var(--radius-sm); border:1px solid var(--line-light);">
+              <div style="font-weight:700; font-size:12.5px; margin-bottom:4px;">🔍 Partner Review Sign-Off Request</div>
+              <div style="font-size:11px; color:var(--ink-muted); margin-bottom:8px;">Notifies partner channels when working papers are finalized.</div>
+              <span style="color:#1f7a4c; font-weight:700; font-size:10.5px;">✓ ENABLED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Dispatches Feed -->
+        <div class="teams-channels-card">
+          <div style="font-size:14px; font-weight:700; color:var(--forest); margin-bottom:12px;">Live Teams Dispatch Feed</div>
+          <table class="dispatch-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Channel</th>
+                <th>Alert Title</th>
+                <th>Dispatched By</th>
+                <th>Priority</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dispatches.length === 0 ? `
+                <tr><td colspan="6" style="text-align:center; padding:20px; color:var(--ink-muted);">No dispatches recorded yet. Use 'Test Broadcast Ping' above.</td></tr>
+              ` : dispatches.slice(0, 8).map(d => `
+                <tr>
+                  <td style="color:var(--ink-muted); white-space:nowrap;">${memberHtml(d.time)}</td>
+                  <td style="font-weight:600; color:#4b53bc;">${memberHtml(d.channel)}</td>
+                  <td><strong>${memberHtml(d.title)}</strong><div style="font-size:11px; color:var(--ink-muted);">${memberHtml(d.summary).slice(0, 60)}...</div></td>
+                  <td>${memberHtml(d.author)}</td>
+                  <td><span style="font-weight:700; font-size:10px; color:${d.priority === 'High' ? 'var(--red)' : 'var(--forest)'};">${memberHtml(d.priority || 'Normal')}</span></td>
+                  <td><span style="color:#1f7a4c; font-weight:600; font-size:11px;">✓ ${memberHtml(d.status)}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column: Microsoft Teams Adaptive Card Live Simulator -->
+      <div>
+        <div class="teams-preview-box">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-weight:700; font-size:12px; color:#605e5c; text-transform:uppercase; letter-spacing:0.5px;">Teams Message Preview</div>
+            <span style="font-size:10.5px; color:#4b53bc; font-weight:600;">Adaptive Card v1.5</span>
+          </div>
+
+          <div class="teams-adaptive-card-preview" id="adaptive-card-preview-container">
+            <div class="teams-card-header">
+              <div class="teams-bot-avatar">R</div>
+              <div>
+                <div class="teams-card-title">${memberHtml(latestDispatch.title)}</div>
+                <div class="teams-card-subtitle">Rao &amp; Co. Practice OS · ${memberHtml(latestDispatch.channel)}</div>
+              </div>
+            </div>
+
+            <div class="teams-card-body">
+              ${memberHtml(latestDispatch.summary)}
+            </div>
+
+            <div class="teams-card-facts">
+              <div class="teams-fact-key">Dispatched By</div>
+              <div class="teams-fact-val">${memberHtml(latestDispatch.author)}</div>
+              <div class="teams-fact-key">Timestamp</div>
+              <div class="teams-fact-val">${memberHtml(latestDispatch.time)}</div>
+              <div class="teams-fact-key">Priority</div>
+              <div class="teams-fact-val" style="color:${latestDispatch.priority === 'High' ? '#c93b34' : 'inherit'};">${memberHtml(latestDispatch.priority || 'Normal')}</div>
+              <div class="teams-fact-key">Target Client</div>
+              <div class="teams-fact-val">ABC Manufacturing Pvt Ltd</div>
+            </div>
+
+            <div class="teams-card-actions">
+              <button class="teams-action-btn teams-action-btn-primary" onclick="navigateTo('clients')">Open in Workplace</button>
+              <button class="teams-action-btn" onclick="toast('Acknowledged alert inside Teams channel')">Acknowledge</button>
+            </div>
+          </div>
+
+          <!-- Quick Teams Meeting Launcher Card -->
+          <div style="margin-top:20px; background:#fff; border:1px solid #e1dfdd; border-radius:4px; padding:16px;">
+            <div style="font-weight:700; font-size:13px; color:#252423; margin-bottom:4px;">Start Instant Teams Huddle</div>
+            <div style="font-size:11.5px; color:#605e5c; margin-bottom:12px;">Launch a quick Microsoft Teams meeting room pre-filled with agenda and client context.</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <select id="quick-teams-client" style="width:100%; padding:6px 8px; font-size:12px; border:1px solid var(--line); border-radius:4px;">
+                ${state.data.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+              </select>
+              <button class="btn-primary" style="background:#4b53bc; width:100%;" data-action="teams-launch-huddle">Launch Teams Huddle Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// 23. TIME & BILLING (WIP) OPERATING CENTER
+function renderTimesheets() {
+  const allEntries = Array.isArray(state.data.timeEntries) ? state.data.timeEntries : [];
+  const clientFilter = state.timesheetFilterClient || 'all';
+  const statusFilter = state.timesheetFilterStatus || 'all';
+
+  const entries = allEntries.filter(e => {
+    if (clientFilter !== 'all' && e.clientId !== clientFilter) return false;
+    if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+    return true;
+  });
+
+  const totalHours = allEntries.reduce((s, e) => s + (Number(e.hours) || 0), 0);
+  const unbilledEntries = allEntries.filter(e => e.status === 'Unbilled');
+  const unbilledWip = unbilledEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const billedEntries = allEntries.filter(e => e.status === 'Invoiced');
+  const billedAmount = billedEntries.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const realization = (unbilledWip + billedAmount) > 0 ? Math.round((billedAmount / (unbilledWip + billedAmount)) * 100) : 85;
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Practice Economics</div>
+        <h1>Time &amp; Billing (WIP) Operating Center</h1>
+        <p>Real-time timesheets, billable realization rates, and Work-in-Progress (WIP) fee tracking.</p>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-secondary" data-action="generate-invoice-wip">🧾 Generate Invoice from WIP</button>
+        <button class="btn-primary" data-action="manual-log-time">＋ Log Time Entry</button>
+      </div>
+    </div>
+
+    <!-- WIP KPI Grid -->
+    <div class="wip-kpi-grid">
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Unbilled WIP Total</div>
+        <div class="wip-kpi-val">₹${unbilledWip.toLocaleString('en-IN')}</div>
+        <div class="wip-kpi-sub">${unbilledEntries.length} unbilled time records</div>
+      </div>
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Total Billable Hours</div>
+        <div class="wip-kpi-val">${totalHours.toFixed(1)} hrs</div>
+        <div class="wip-kpi-sub">Across ${state.data.clients.length} active client accounts</div>
+      </div>
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Realization Ratio</div>
+        <div class="wip-kpi-val">${realization}%</div>
+        <div class="wip-kpi-sub" style="color:#1f7a4c;">✓ Exceeds 80% firm target</div>
+      </div>
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Avg Effective Rate</div>
+        <div class="wip-kpi-val">₹175<span style="font-size:14px; font-weight:500;">/hr</span></div>
+        <div class="wip-kpi-sub">Blended partner &amp; staff realization</div>
+      </div>
+    </div>
+
+    <!-- Timesheet Table Card -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div class="card-title">Recorded Timesheets &amp; Engagements ${entries.length !== allEntries.length ? `(${entries.length} of ${allEntries.length})` : ''}</div>
+        <div style="display:flex; gap:8px;">
+          <select id="timesheet-filter-client" style="padding:5px 8px; font-size:12px; border:1px solid var(--line); border-radius:4px;">
+            <option value="all" ${clientFilter === 'all' ? 'selected' : ''}>All Clients</option>
+            ${state.data.clients.map(c => `<option value="${c.id}" ${clientFilter === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+          <select id="timesheet-filter-status" style="padding:5px 8px; font-size:12px; border:1px solid var(--line); border-radius:4px;">
+            <option value="all" ${statusFilter === 'all' ? 'selected' : ''}>All Statuses</option>
+            <option value="Unbilled" ${statusFilter === 'Unbilled' ? 'selected' : ''}>Unbilled</option>
+            <option value="Invoiced" ${statusFilter === 'Invoiced' ? 'selected' : ''}>Invoiced</option>
+          </select>
+        </div>
+      </div>
+
+      <table class="dispatch-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Member</th>
+            <th>Client</th>
+            <th>Task / Engagement</th>
+            <th>Hours</th>
+            <th>Rate</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${entries.length === 0 ? `
+            <tr><td colspan="9" style="text-align:center; padding:30px; color:var(--ink-muted);">No timesheets logged. Start the topbar timer or click 'Log Time Entry'.</td></tr>
+          ` : entries.map(e => `
+            <tr>
+              <td style="color:var(--ink-muted); white-space:nowrap;">${memberHtml(e.date)}</td>
+              <td><strong>${memberHtml(e.memberName)}</strong> <span style="font-size:10.5px; color:var(--ink-subtle);">(${memberHtml(e.role || 'Staff')})</span></td>
+              <td><strong>${memberHtml(e.clientName)}</strong></td>
+              <td>${memberHtml(e.taskTitle)}</td>
+              <td><strong>${Number(e.hours).toFixed(1)} hrs</strong></td>
+              <td>₹${memberHtml(e.rate)}/h</td>
+              <td><strong>₹${Number(e.amount).toLocaleString('en-IN')}</strong></td>
+              <td>
+                <span style="font-weight:700; font-size:11px; color:${e.status === 'Unbilled' ? 'var(--yellow)' : '#1f7a4c'};">
+                  ● ${memberHtml(e.status)}
+                </span>
+              </td>
+              <td style="font-size:11.5px; color:var(--ink-muted); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${memberHtml(e.notes || '—')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// 24. PROPOSALS & DIGITAL E-SIGNATURES
+function renderProposals() {
+  const proposals = Array.isArray(state.data.proposals) ? state.data.proposals : [];
+  const totalPipeline = proposals.reduce((s, p) => s + (Number(p.totalValue) || 0), 0);
+  const executed = proposals.filter(p => p.status === 'Signed & Executed');
+  const outForSig = proposals.filter(p => p.status === 'Out for Signature');
+
+  return `
+    <div class="page-header">
+      <div class="page-header-title">
+        <div class="eyebrow">Client Agreements &amp; Retainers</div>
+        <h1>Proposals &amp; Digital E-Signatures</h1>
+        <p>Engagement letters, statutory scope agreements, and legally binding digital sign-offs.</p>
+      </div>
+      <button class="btn-primary" data-action="new-proposal">＋ Create Engagement Proposal</button>
+    </div>
+
+    <!-- Pipeline KPI Grid -->
+    <div class="wip-kpi-grid">
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Active Proposal Pipeline</div>
+        <div class="wip-kpi-val">₹${totalPipeline.toLocaleString('en-IN')}</div>
+        <div class="wip-kpi-sub">${proposals.length} total agreements</div>
+      </div>
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Signed &amp; Executed</div>
+        <div class="wip-kpi-val">${executed.length} Retainers</div>
+        <div class="wip-kpi-sub" style="color:#1f7a4c;">✓ Cryptographically verified</div>
+      </div>
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Out for Signature</div>
+        <div class="wip-kpi-val">${outForSig.length} Awaiting</div>
+        <div class="wip-kpi-sub" style="color:var(--yellow);">Magic links sent to clients</div>
+      </div>
+      <div class="wip-kpi-card">
+        <div class="wip-kpi-label">Avg Execution Turnaround</div>
+        <div class="wip-kpi-val">1.8 <span style="font-size:14px; font-weight:500;">days</span></div>
+        <div class="wip-kpi-sub">From proposal draft to signed agreement</div>
+      </div>
+    </div>
+
+    <!-- Proposals Grid -->
+    <div class="proposals-grid">
+      ${proposals.map(p => `
+        <div class="proposal-card">
+          <div class="proposal-header">
+            <div>
+              <div class="proposal-number">${memberHtml(p.proposalNo)}</div>
+              <div class="proposal-title">${memberHtml(p.title)}</div>
+              <div class="proposal-client">Client: <strong>${memberHtml(p.clientName)}</strong></div>
+            </div>
+            <span style="font-weight:700; font-size:11px; color:${p.status === 'Signed & Executed' ? '#1f7a4c' : (p.status === 'Out for Signature' ? 'var(--yellow)' : 'var(--ink-muted)')};">
+              ● ${memberHtml(p.status)}
+            </span>
+          </div>
+
+          <div class="proposal-scope-snippet">
+            <strong>Scope of Work:</strong><br>
+            ${memberHtml(p.scope)}
+          </div>
+
+          ${p.status === 'Signed & Executed' ? `
+            <div class="signature-stamp-box" style="margin-bottom:14px;">
+              <span class="signature-stamp-icon">✍️</span>
+              <div>
+                <div style="font-weight:700; font-size:11.5px; color:var(--emerald);">Digitally Executed by ${memberHtml(p.signedBy)}</div>
+                <div style="font-size:10px; color:var(--ink-muted);">Signed on ${memberHtml(p.signedAt)} · <code style="color:var(--emerald);">${memberHtml(p.signatureHash)}</code></div>
+              </div>
+            </div>
+          ` : `
+            <div style="font-size:11px; color:var(--ink-muted); margin-bottom:14px;">
+              Valid until: <strong>${memberHtml(p.validUntil)}</strong> · ${p.status === 'Out for Signature' ? 'Awaiting client digital signature' : 'Draft stage'}
+            </div>
+          `}
+
+          <div class="proposal-footer">
+            <div>
+              <div class="proposal-value">₹${Number(p.totalValue).toLocaleString('en-IN')}</div>
+              <div class="proposal-fee-type">${memberHtml(p.feeType)} ${p.retainerMonthly ? `(₹${Number(p.retainerMonthly).toLocaleString('en-IN')}/mo)` : ''}</div>
+            </div>
+            <div style="display:flex; gap:6px;">
+              ${p.status === 'Signed & Executed' ? `
+                <button class="btn-secondary" data-action="view-proposal-pdf" data-prop-id="${p.id}">View Executed Agreement</button>
+              ` : `
+                <button class="btn-primary" data-action="open-esign-modal" data-prop-id="${p.id}">Review &amp; E-Sign</button>
+              `}
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 // MAIN APP NAVIGATION RENDER ROUTER
 function navigateTo(viewName) {
   if (viewName !== 'home' && !canSee(viewName)) {
@@ -4753,7 +5439,10 @@ function navigateTo(viewName) {
     games: 'Games',
     'game-sudoku': 'Sudoku',
     'game-drill': 'Speed Drill',
-    'game-gst': 'GST Challenge'
+    'game-gst': 'GST Challenge',
+    'teams-sync': 'Microsoft Teams',
+    timesheets: 'Time & Billing (WIP)',
+    proposals: 'Proposals & E-Sign'
   };
   pageTitleBc.textContent = labelMap[viewName] || 'Overview';
 
@@ -4787,6 +5476,9 @@ function navigateTo(viewName) {
     case 'gstrecon': appView.innerHTML = renderGstRecon(); break;
     case 'payments': appView.innerHTML = renderPayments(); break;
     case 'ledger': appView.innerHTML = renderLedger(); break;
+    case 'teams-sync': appView.innerHTML = renderTeamsSync(); break;
+    case 'timesheets': appView.innerHTML = renderTimesheets(); break;
+    case 'proposals': appView.innerHTML = renderProposals(); break;
     case 'games': appView.innerHTML = renderGames(); break;
     case 'game-sudoku': appView.innerHTML = renderSudoku(); break;
     case 'game-drill': appView.innerHTML = renderDrill(); break;
@@ -4982,6 +5674,715 @@ function openCreateModal(type) {
   };
 }
 
+function closeModal() {
+  const root = document.getElementById('modal-root');
+  if (root) root.classList.remove('open');
+}
+
+async function triggerTeamsTestPing() {
+  toast('Dispatching test broadcast to Microsoft Teams...');
+  try {
+    const res = await fetch('/api/teams/broadcast', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        channel: '# Tax & Compliance',
+        title: '⚡ Practice OS Webhook Verification Ping',
+        summary: 'All practice systems operational. Connected to Microsoft 365 Tenant (Rao & Co. Practice Group).',
+        priority: 'Normal',
+        author: currentUser().name
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (!Array.isArray(state.data.teamsDispatches)) state.data.teamsDispatches = [];
+      state.data.teamsDispatches.unshift(data.dispatch);
+      state.save();
+      toast('✓ Microsoft Teams broadcast verified & delivered!');
+      if (state.currentView === 'teams-sync') navigateTo('teams-sync');
+    }
+  } catch (err) {
+    toast(`Teams dispatch error: ${err.message}`);
+  }
+}
+
+function openTeamsBroadcastModal(channelName = '# General Practice', defaultSummary = '') {
+  const root = document.getElementById('modal-root');
+  const channels = ['# Tax & Compliance', '# Audit & Assurance', '# General Practice', '# Billing & Invoicing'];
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">👥</span>
+          <h3>Broadcast Adaptive Card to Microsoft Teams</h3>
+        </div>
+        <p>Post a rich, structured Adaptive Card into the firm's Microsoft Teams channels.</p>
+      </div>
+      <form id="teams-broadcast-form">
+        <div class="form-group">
+          <label>Target Teams Channel</label>
+          <select id="form-teams-channel" required>
+            ${channels.map(c => `<option value="${c}" ${c === channelName ? 'selected' : ''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Card Title / Alert Header</label>
+          <input required id="form-teams-title" placeholder="e.g. Audit PBC Document Received: ABC Mfg" value="Compliance Update: ${state.data.clients[0]?.name || 'Client'}" />
+        </div>
+        <div class="form-group">
+          <label>Summary Message &amp; Context</label>
+          <textarea required id="form-teams-summary" rows="3" placeholder="Provide context, action items, or client status notes...">${memberHtml(defaultSummary)}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Priority Tag</label>
+          <select id="form-teams-priority">
+            <option value="Normal">Normal</option>
+            <option value="High">High (Immediate Team Action)</option>
+            <option value="Urgent">Urgent (Statutory Penalty Risk)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary" style="background:#4b53bc;">Broadcast to Teams ↗</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('teams-broadcast-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const ch = document.getElementById('form-teams-channel').value;
+    const title = document.getElementById('form-teams-title').value.trim();
+    const summary = document.getElementById('form-teams-summary').value.trim();
+    const priority = document.getElementById('form-teams-priority').value;
+
+    try {
+      const res = await fetch('/api/teams/broadcast', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ channel: ch, title, summary, priority, author: currentUser().name })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (!Array.isArray(state.data.teamsDispatches)) state.data.teamsDispatches = [];
+        state.data.teamsDispatches.unshift(data.dispatch);
+        state.save();
+        closeModal();
+        toast(`✓ Broadcasted to ${ch} on Microsoft Teams`);
+        if (state.currentView === 'teams-sync') navigateTo('teams-sync');
+      }
+    } catch (err) {
+      toast(`Failed to send to Teams: ${err.message}`);
+    }
+  };
+}
+
+function openTeamsMeetingModal() {
+  const root = document.getElementById('modal-root');
+  const clients = state.data.clients || [];
+  const clientOptions = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const meetId = 'meet_' + Math.random().toString(36).substring(2, 9);
+  const teamsLink = `https://teams.microsoft.com/l/meetup-join/19%3ameeting_${meetId}%40thread.v2/0?context=%7b%22Tid%22%3a%22ms-rao-cpa-blr%22%7d`;
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:22px;">📞</span>
+          <h3>Schedule Microsoft Teams Meeting</h3>
+        </div>
+        <p>Generate a Teams meeting room for client conferences, review walk-throughs, or partner sign-offs.</p>
+      </div>
+      <form id="teams-meeting-form">
+        <div class="form-group">
+          <label>Client</label>
+          <select id="meet-client-select">${clientOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Meeting Topic</label>
+          <input required id="meet-topic-input" placeholder="e.g. FY 2026-27 Statutory Audit Progress &amp; PBC Review" value="Audit &amp; Tax Review Session" />
+        </div>
+        <div class="form-group" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label>Date</label>
+            <input type="date" id="meet-date-input" value="${localDateKey()}" required />
+          </div>
+          <div>
+            <label>Time</label>
+            <input type="time" id="meet-time-input" value="15:00" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Microsoft Teams Join Link (Generated)</label>
+          <input readonly id="meet-link-input" value="${teamsLink}" style="background:var(--cream); font-family:monospace; font-size:11px;" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="button" class="btn-secondary" id="btn-copy-teams-link">Copy Join Link</button>
+          <button type="submit" class="btn-primary" style="background:#4b53bc;">Launch in Teams ↗</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('btn-copy-teams-link').onclick = () => {
+    navigator.clipboard.writeText(teamsLink).catch(() => {});
+    toast('✓ Copied Teams Meeting link to clipboard!');
+  };
+
+  document.getElementById('teams-meeting-form').onsubmit = (e) => {
+    e.preventDefault();
+    const topic = document.getElementById('meet-topic-input').value;
+    const client = clients.find(c => c.id === document.getElementById('meet-client-select').value);
+    state.data.calendarEvents.unshift({
+      id: `ev_${Date.now()}`,
+      title: `Teams Meeting: ${topic}`,
+      date: document.getElementById('meet-date-input').value,
+      details: `Microsoft Teams session with ${client?.name}. Join: ${teamsLink}`,
+      createdBy: currentUser().name,
+      createdAt: new Date().toISOString()
+    });
+    state.save();
+    closeModal();
+    toast(`✓ Scheduled Teams Huddle with ${client?.name}`);
+  };
+}
+
+function openTeamsConfigModal() {
+  const root = document.getElementById('modal-root');
+  const cfg = state.data.teamsConfig || { tenantName: 'Rao & Co. Practice Group', webhookUrl: '', channels: [] };
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <h3>Microsoft 365 &amp; Teams Configuration</h3>
+        <p>Set incoming webhook URLs from your Microsoft Teams channel connectors.</p>
+      </div>
+      <form id="teams-cfg-form">
+        <div class="form-group">
+          <label>Tenant / Firm Display Name</label>
+          <input required id="cfg-tenant-name" value="${memberHtml(cfg.tenantName || 'Rao & Co. Practice Group')}" />
+        </div>
+        <div class="form-group">
+          <label>Default Incoming Webhook URL</label>
+          <input id="cfg-webhook-url" value="${memberHtml(cfg.webhookUrl || '')}" placeholder="https://outlook.office.com/webhook/..." />
+          <small style="color:var(--ink-muted);">In Teams: Channel → ... → Connectors → Incoming Webhook → Copy URL</small>
+        </div>
+        ${(cfg.channels || []).map((ch, idx) => `
+          <div class="form-group">
+            <label>${memberHtml(ch.name)} Webhook URL</label>
+            <input class="cfg-channel-url" data-channel-idx="${idx}" value="${memberHtml(ch.webhookUrl || '')}" placeholder="Optional channel-specific webhook URL" />
+          </div>
+        `).join('')}
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary" style="background:#4b53bc;">Save Configuration</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('teams-cfg-form').onsubmit = (e) => {
+    e.preventDefault();
+    cfg.tenantName = document.getElementById('cfg-tenant-name').value.trim();
+    cfg.webhookUrl = document.getElementById('cfg-webhook-url').value.trim();
+    document.querySelectorAll('.cfg-channel-url').forEach(inp => {
+      const idx = Number(inp.dataset.channelIdx);
+      if (cfg.channels[idx]) cfg.channels[idx].webhookUrl = inp.value.trim();
+    });
+    state.data.teamsConfig = cfg;
+    state.save();
+    closeModal();
+    toast('✓ Microsoft Teams configuration updated!');
+    if (state.currentView === 'teams-sync') navigateTo('teams-sync');
+  };
+}
+
+function openLogTimeModal(seconds = 0) {
+  const root = document.getElementById('modal-root');
+  const clients = state.data.clients || [];
+  const tasks = state.data.tasks || [];
+  const initialHours = seconds > 0 ? (Math.round((seconds / 3600) * 10) / 10 || 0.1) : 1.0;
+  const initialRate = roleHourlyRate(state.activeRole);
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:22px;">⏱️</span>
+          <h3>Log Billable Time Entry (WIP)</h3>
+        </div>
+        <p>Record billable client work, adjust rate, and post to the firm timesheet ledger.</p>
+      </div>
+      <form id="log-time-form">
+        <div class="form-group">
+          <label>Client</label>
+          <select id="time-client-select" required>
+            ${clients.map(c => `<option value="${c.id}" ${c.id === state.timerClientId ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Task / Engagement</label>
+          <select id="time-task-select" required>
+            ${tasks.map(t => `<option value="${t.id}">${t.title} (${t.clientName || 'General'})</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label>Hours Worked</label>
+            <input type="number" step="0.1" min="0.1" max="24" id="time-hours-input" value="${initialHours}" required />
+          </div>
+          <div>
+            <label>Hourly Rate (₹/hr)</label>
+            <input type="number" step="5" min="0" id="time-rate-input" value="${initialRate}" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="time-billable-input" checked />
+            <span style="font-weight:600;">Billable to Client (Accrues to WIP)</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Work Description / Notes</label>
+          <textarea id="time-notes-input" rows="2.5" placeholder="e.g. Conducted review of August purchase register and verified disputed ITC..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Post Time Entry ✓</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('log-time-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const clientId = document.getElementById('time-client-select').value;
+    const client = clients.find(c => c.id === clientId);
+    const taskId = document.getElementById('time-task-select').value;
+    const task = tasks.find(t => t.id === taskId);
+    const hours = Number(document.getElementById('time-hours-input').value) || 1.0;
+    const rate = Number(document.getElementById('time-rate-input').value) || initialRate;
+    const billable = document.getElementById('time-billable-input').checked;
+    const notes = document.getElementById('time-notes-input').value.trim();
+
+    try {
+      const res = await fetch('/api/time/log', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          memberId: currentUser().id,
+          memberName: currentUser().name,
+          role: state.activeRole,
+          clientId,
+          clientName: client?.name || 'General',
+          taskId,
+          taskTitle: task?.title || 'Client Advisory',
+          hours,
+          rate,
+          billable,
+          notes
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (!Array.isArray(state.data.timeEntries)) state.data.timeEntries = [];
+        state.data.timeEntries.unshift(data.entry);
+        state.resetTimer();
+        state.save();
+        closeModal();
+        toast(`✓ Logged ${hours} hrs for ${client?.name}`);
+        if (state.currentView === 'timesheets') navigateTo('timesheets');
+      }
+    } catch (err) {
+      toast(`Error logging time: ${err.message}`);
+    }
+  };
+}
+
+function openProposalModal() {
+  const root = document.getElementById('modal-root');
+  const clients = state.data.clients || [];
+  const clientOptions = clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <h3>Draft Engagement Proposal</h3>
+        <p>Prepare a scope of work and retainer proposal for client digital execution.</p>
+      </div>
+      <form id="new-proposal-form">
+        <div class="form-group">
+          <label>Client</label>
+          <select id="prop-client-select" required>${clientOptions}</select>
+        </div>
+        <div class="form-group">
+          <label>Proposal Title</label>
+          <input required id="prop-title-input" placeholder="e.g. FY 2026-27 Statutory Audit &amp; Direct Tax Retainer" />
+        </div>
+        <div class="form-group" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label>Fee Structure</label>
+            <select id="prop-fee-type">
+              <option value="Monthly Retainer">Monthly Retainer</option>
+              <option value="Fixed Milestone">Fixed Milestone</option>
+              <option value="Hourly + Cap">Hourly + Cap</option>
+            </select>
+          </div>
+          <div>
+            <label>Total Contract Value (₹)</label>
+            <input type="number" id="prop-value-input" value="180000" step="5000" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Scope of Work Clauses</label>
+          <textarea required id="prop-scope-input" rows="3" placeholder="Detail the statutory filings, review cycles, and deliverables..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Valid Until Date</label>
+          <input type="date" id="prop-valid-input" value="${new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)}" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Generate Proposal Draft</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('new-proposal-form').onsubmit = (e) => {
+    e.preventDefault();
+    const clientId = document.getElementById('prop-client-select').value;
+    const client = clients.find(c => c.id === clientId);
+    const title = document.getElementById('prop-title-input').value.trim();
+    const feeType = document.getElementById('prop-fee-type').value;
+    const totalValue = Number(document.getElementById('prop-value-input').value) || 100000;
+    const scope = document.getElementById('prop-scope-input').value.trim();
+    const validUntil = document.getElementById('prop-valid-input').value;
+    const count = (state.data.proposals || []).length + 101;
+
+    const prop = {
+      id: `prop_${Date.now()}`,
+      proposalNo: `PROP-2026-${count}`,
+      clientId,
+      clientName: client?.name || 'Client',
+      title,
+      feeType,
+      retainerMonthly: feeType === 'Monthly Retainer' ? Math.round(totalValue / 12) : 0,
+      totalValue,
+      validUntil,
+      status: 'Out for Signature',
+      scope,
+      signedBy: null,
+      signedEmail: null,
+      signedAt: null
+    };
+
+    if (!Array.isArray(state.data.proposals)) state.data.proposals = [];
+    state.data.proposals.unshift(prop);
+    state.save();
+    closeModal();
+    toast(`✓ Created proposal ${prop.proposalNo} for ${client?.name}`);
+    if (state.currentView === 'proposals') navigateTo('proposals');
+  };
+}
+
+function openSignProposalModal(propId) {
+  const root = document.getElementById('modal-root');
+  const prop = (state.data.proposals || []).find(p => p.id === propId);
+  if (!prop) { toast('Proposal not found'); return; }
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:620px;">
+      <div class="signature-letterhead">
+        <div>
+          <div style="font-family:var(--font-serif); font-size:20px; font-weight:700; color:var(--forest);">Rao &amp; Co. CPAs</div>
+          <div style="font-size:11px; color:var(--ink-muted);">Operating System for Practice · Engagement Agreement</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700; font-size:13px; color:var(--emerald);">${prop.proposalNo}</div>
+          <div style="font-size:11px; color:var(--ink-muted);">Date: ${localDateKey()}</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <h3 style="font-size:16px; font-weight:700; color:var(--forest);">${memberHtml(prop.title)}</h3>
+        <p style="font-size:12px; color:var(--ink-muted);">Client: <strong>${memberHtml(prop.clientName)}</strong> · Value: <strong>₹${Number(prop.totalValue).toLocaleString('en-IN')}</strong> (${memberHtml(prop.feeType)})</p>
+      </div>
+
+      <div style="background:var(--cream); border:1px solid var(--line); border-radius:6px; padding:12px 14px; font-size:12px; line-height:1.5; margin-bottom:16px; max-height:140px; overflow-y:auto;">
+        <strong>Terms &amp; Scope:</strong><br>
+        ${memberHtml(prop.scope)}
+        <div style="margin-top:8px; font-size:11px; color:var(--ink-muted);">
+          The client agrees to provide all necessary accounting books, GST logs, and bank statements within 5 days of monthly close. Rao &amp; Co. will perform services in accordance with ICAI Auditing &amp; Assurance Standards.
+        </div>
+      </div>
+
+      <form id="esign-form">
+        <div class="form-group" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label>Authorized Signatory Name</label>
+            <input required id="signer-name-input" placeholder="e.g. Anand Kumar" value="Anand Kumar" />
+          </div>
+          <div>
+            <label>Signatory Title</label>
+            <input required id="signer-title-input" placeholder="e.g. Managing Director" value="Director / CFO" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Signer Official Email</label>
+          <input type="email" required id="signer-email-input" placeholder="signatory@company.com" value="authorized@client.com" />
+        </div>
+
+        <div class="form-group">
+          <label>Digital Signature Pad (Type or Preview Sign-off)</label>
+          <div class="signature-canvas-area" id="sig-preview-pad">
+            Anand Kumar
+          </div>
+          <small style="color:var(--ink-muted);">Digital cryptographic seal will be applied under Information Technology Act E-Sign standards.</small>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary" style="background:var(--emerald);">Execute Digital Signature &amp; Seal ✍️</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  const signerInput = document.getElementById('signer-name-input');
+  const pad = document.getElementById('sig-preview-pad');
+  signerInput.addEventListener('input', () => {
+    pad.textContent = signerInput.value || 'Digital Signature';
+  });
+
+  document.getElementById('esign-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const signerName = document.getElementById('signer-name-input').value.trim();
+    const signerTitle = document.getElementById('signer-title-input').value.trim();
+    const signerEmail = document.getElementById('signer-email-input').value.trim();
+
+    try {
+      const res = await fetch('/api/proposals/sign', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          proposalId: prop.id,
+          signerName,
+          signerTitle,
+          signerEmail
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        Object.assign(prop, data.proposal);
+        if (data.task && Array.isArray(state.data.tasks)) {
+          state.data.tasks.unshift(data.task);
+        }
+        state.save();
+        closeModal();
+        toast(`✓ Executed agreement ${prop.proposalNo}! Onboarding task scheduled.`);
+        if (state.currentView === 'proposals') navigateTo('proposals');
+      }
+    } catch (err) {
+      toast(`Signature error: ${err.message}`);
+    }
+  };
+}
+
+function openViewExecutedProposal(propId) {
+  const root = document.getElementById('modal-root');
+  const prop = (state.data.proposals || []).find(p => p.id === propId);
+  if (!prop) return;
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:580px;">
+      <div class="signature-letterhead">
+        <div>
+          <div style="font-family:var(--font-serif); font-size:20px; font-weight:700; color:var(--forest);">Rao &amp; Co. CPAs</div>
+          <div style="font-size:11px; color:var(--ink-muted);">Executed Engagement Agreement</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700; color:var(--emerald);">${prop.proposalNo}</div>
+          <div style="font-size:11px; color:var(--ink-muted);">Executed: ${prop.signedAt}</div>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <h3 style="font-size:16px; font-weight:700; color:var(--forest);">${memberHtml(prop.title)}</h3>
+        <p style="font-size:12px; color:var(--ink-muted);">Client: <strong>${memberHtml(prop.clientName)}</strong> · ₹${Number(prop.totalValue).toLocaleString('en-IN')}</p>
+      </div>
+      <div style="background:var(--cream); padding:12px; border-radius:6px; font-size:12px; line-height:1.5; margin-bottom:16px;">
+        ${memberHtml(prop.scope)}
+      </div>
+      <div class="signature-stamp-box">
+        <span class="signature-stamp-icon">✍️</span>
+        <div>
+          <div style="font-weight:700; color:var(--emerald);">Verified E-Signature Certificate</div>
+          <div style="font-size:11px; color:var(--ink); margin-top:2px;">Signer: <strong>${memberHtml(prop.signedBy)}</strong> (${memberHtml(prop.signedEmail || 'client')})</div>
+          <div style="font-size:10.5px; color:var(--ink-muted);">Audit Seal: <code>${memberHtml(prop.signatureHash)}</code></div>
+        </div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button type="button" class="btn-ghost" onclick="closeModal()">Close</button>
+        <button type="button" class="btn-primary" onclick="toast('Downloaded verified agreement copy'); closeModal();">Download PDF Statement</button>
+      </div>
+    </div>
+  `;
+  root.classList.add('open');
+}
+
+function copyMagicLink(clientId, reqId) {
+  const token = 'pbc_' + Math.random().toString(36).substring(2, 10);
+  const url = `${window.location.origin || 'http://localhost:3000'}/#portal?client=${encodeURIComponent(clientId)}&req=${encodeURIComponent(reqId)}&magic=${token}`;
+  navigator.clipboard.writeText(url).catch(() => {});
+  toast('✓ Copied Client Zero-Login Magic Link to Clipboard!');
+}
+
+async function sendPbcReminder(reqId) {
+  toast('Sending automated document reminder to client...');
+  try {
+    const res = await fetch('/api/pbc/chase', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId: reqId })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const item = state.data.requests.find(r => r.id === reqId);
+      if (item) {
+        item.lastReminderSent = data.request.lastReminderSent;
+        item.reminderCount = data.request.reminderCount;
+      }
+      state.save();
+      toast('✓ Document reminder sent to client & logged in Microsoft Teams!');
+      if (state.currentView === 'requests') navigateTo('requests');
+    }
+  } catch (err) {
+    toast(`Reminder error: ${err.message}`);
+  }
+}
+
+function openOcrPreviewModal(reqTitle) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:520px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">📄</span>
+          <h3>Document OCR &amp; Auto-Extraction</h3>
+        </div>
+        <p>Extracted structured data from client uploaded document: <strong>${memberHtml(reqTitle)}</strong></p>
+      </div>
+      <div style="background:var(--cream); border:1px solid var(--line); border-radius:6px; padding:16px; margin-bottom:16px;">
+        <div style="display:grid; grid-template-columns:120px 1fr; gap:8px; font-size:12px;">
+          <div style="color:var(--ink-muted);">Vendor / Party:</div><strong>Kumar Traders</strong>
+          <div style="color:var(--ink-muted);">GSTIN:</div><code>29AABCR4821M1Z4</code>
+          <div style="color:var(--ink-muted);">Invoice Date:</div><div>2026-08-02</div>
+          <div style="color:var(--ink-muted);">Invoice No:</div><div>INV-1001</div>
+          <div style="color:var(--ink-muted);">Taxable Value:</div><strong>₹1,00,000.00</strong>
+          <div style="color:var(--ink-muted);">IGST (18%):</div><strong>₹18,000.00</strong>
+          <div style="color:var(--ink-muted);">Total Invoice:</div><strong style="color:var(--forest);">₹1,18,000.00</strong>
+          <div style="color:var(--ink-muted);">OCR Confidence:</div><span style="color:#1f7a4c; font-weight:700;">99.4% (Direct Bank Statement Extract)</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" onclick="closeModal()">Close</button>
+        <button type="button" class="btn-secondary" onclick="navigateTo('gstrecon'); closeModal();">Match in GST 2B Recon</button>
+        <button type="button" class="btn-primary" onclick="navigateTo('ledger'); closeModal();">Create Draft Journal Entry</button>
+      </div>
+    </div>
+  `;
+  root.classList.add('open');
+}
+
+function openWipInvoiceModal() {
+  const root = document.getElementById('modal-root');
+  const unbilled = (state.data.timeEntries || []).filter(e => e.status === 'Unbilled');
+  const total = unbilled.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:22px;">🧾</span>
+          <h3>Generate Client Invoice from WIP</h3>
+        </div>
+        <p>Convert unbilled time records into an itemized fee statement.</p>
+      </div>
+      <div style="background:var(--cream); border:1px solid var(--line); border-radius:6px; padding:14px; margin-bottom:16px;">
+        <div style="font-weight:700; font-size:13px; color:var(--forest); margin-bottom:6px;">Unbilled Work Items (${unbilled.length} entries)</div>
+        <div style="max-height:120px; overflow-y:auto; font-size:11.5px; line-height:1.6;">
+          ${unbilled.map(u => `<div>● ${memberHtml(u.clientName)}: ${memberHtml(u.taskTitle)} (${u.hours} hrs) — <strong>₹${Number(u.amount).toLocaleString('en-IN')}</strong></div>`).join('')}
+        </div>
+        <div style="border-top:1px solid var(--line); margin-top:8px; padding-top:8px; display:flex; justify-content:space-between; font-weight:700;">
+          <span>Total Invoiced WIP:</span>
+          <span style="color:var(--forest);">₹${total.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-primary" id="btn-confirm-invoice">Confirm &amp; Mark as Invoiced</button>
+      </div>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('btn-confirm-invoice').onclick = () => {
+    unbilled.forEach(e => { e.status = 'Invoiced'; });
+    state.save();
+    closeModal();
+    toast(`✓ Generated invoice for ₹${total.toLocaleString('en-IN')} and marked WIP as Invoiced!`);
+    navigateTo('timesheets');
+  };
+}
+
+function openTimerContextModal() {
+  const root = document.getElementById('modal-root');
+  const clients = state.data.clients || [];
+  root.innerHTML = `
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-header">
+        <h3>Live Stopwatch Client &amp; Billing Context</h3>
+        <p>Set active client and billable rate for current time tracking session.</p>
+      </div>
+      <form id="timer-ctx-form">
+        <div class="form-group">
+          <label>Active Client</label>
+          <select id="timer-modal-client">
+            ${clients.map(c => `<option value="${c.id}" ${c.id === state.timerClientId ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="timer-modal-billable" ${state.timerBillable ? 'checked' : ''} />
+            <span style="font-weight:600;">Track as Billable (₹${roleHourlyRate(state.activeRole)}/hr based on ${state.activeRole} role)</span>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Apply Context</button>
+        </div>
+      </form>
+    </div>
+  `;
+  root.classList.add('open');
+
+  document.getElementById('timer-ctx-form').onsubmit = (e) => {
+    e.preventDefault();
+    state.timerClientId = document.getElementById('timer-modal-client').value;
+    state.timerBillable = document.getElementById('timer-modal-billable').checked;
+    state.updateTimerDisplay();
+    closeModal();
+    toast('✓ Stopwatch context updated');
+  };
+}
+
 // EVENT LISTENERS & DELEGATION
 document.addEventListener('DOMContentLoaded', () => {
   document.body.addEventListener('change', (e) => {
@@ -5012,14 +6413,26 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.journalDraft[index]) state.journalDraft[index][lineField.dataset.ledgerLineField] = lineField.value;
     }
     const dateField = e.target.closest('[data-ledger-date]');
-    if (!dateField) return;
-    if (dateField.dataset.ledgerDate === 'start') state.ledgerStartDate = dateField.value;
-    if (dateField.dataset.ledgerDate === 'end') state.ledgerEndDate = dateField.value;
-    if (state.ledgerStartDate > state.ledgerEndDate) {
-      toast('The start date must be on or before the end date.');
-      state.ledgerStartDate = state.ledgerEndDate;
+    if (dateField) {
+      if (dateField.dataset.ledgerDate === 'start') state.ledgerStartDate = dateField.value;
+      if (dateField.dataset.ledgerDate === 'end') state.ledgerEndDate = dateField.value;
+      if (state.ledgerStartDate > state.ledgerEndDate) {
+        toast('The start date must be on or before the end date.');
+        state.ledgerStartDate = state.ledgerEndDate;
+      }
+      navigateTo('ledger');
+      return;
     }
-    navigateTo('ledger');
+    if (e.target.id === 'timesheet-filter-client') {
+      state.timesheetFilterClient = e.target.value;
+      navigateTo('timesheets');
+      return;
+    }
+    if (e.target.id === 'timesheet-filter-status') {
+      state.timesheetFilterStatus = e.target.value;
+      navigateTo('timesheets');
+      return;
+    }
   });
   // Navigation Sidebar Click Delegation
   document.querySelectorAll('[data-view]').forEach(btn => {
@@ -5035,6 +6448,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Global Dynamic Click Handler
   document.body.addEventListener('click', (e) => {
+    // Topbar Live Stopwatch controls
+    const toggleTimerBtn = e.target.closest('#btn-timer-toggle');
+    if (toggleTimerBtn) {
+      if (state.timerRunning) {
+        state.pauseTimer();
+        toast('Billable timer paused');
+      } else {
+        state.startTimer();
+        toast('Billable timer started');
+      }
+      return;
+    }
+
+    const stopTimerBtn = e.target.closest('#btn-timer-stop');
+    if (stopTimerBtn) {
+      if (state.timerSeconds < 3) {
+        toast('Timer is at 0:00. Start timer before logging.');
+        return;
+      }
+      state.pauseTimer();
+      openLogTimeModal(state.timerSeconds);
+      return;
+    }
+
+    const timerWidget = e.target.closest('#topbar-timer-widget');
+    if (timerWidget && !e.target.closest('.timer-btn')) {
+      openTimerContextModal();
+      return;
+    }
+
+    const broadcastBtn = e.target.closest('#btn-broadcast-teams');
+    if (broadcastBtn) {
+      const input = document.getElementById('chat-input-text');
+      const text = input ? input.value.trim() : '';
+      openTeamsBroadcastModal(state.activeChatChannel, text);
+      return;
+    }
+
     // Workspace Switcher (the firm card in the sidebar)
     const wsCard = e.target.closest('#workspace-card');
     if (wsCard) {
@@ -5305,6 +6756,83 @@ document.addEventListener('DOMContentLoaded', () => {
             navigateTo('team');
           })
           .catch(error => { toast(error.message); actBtn.disabled = false; });
+      }
+      else if (act === 'teams-meeting') {
+        openTeamsMeetingModal();
+      }
+      else if (act === 'teams-post-alert') {
+        openTeamsBroadcastModal();
+      }
+      else if (act === 'teams-test-ping') {
+        toast('Sending broadcast test ping to Microsoft Teams...');
+        fetch('/api/teams/broadcast', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            channel: '# Tax & Compliance',
+            title: 'Ping: Microsoft Teams Integration Test',
+            summary: 'Rao & Co. Practice OS connection verified. Latency: 24ms. Adaptive cards active.',
+            author: currentUser().name,
+            priority: 'Normal'
+          })
+        }).then(r => r.json()).then(data => {
+          if (data.ok) {
+            if (!Array.isArray(state.data.teamsDispatches)) state.data.teamsDispatches = [];
+            state.data.teamsDispatches.unshift(data.dispatch);
+            state.save();
+            toast('✓ Teams broadcast ping successful! Adaptive card dispatched.');
+            if (state.currentView === 'teams-sync') navigateTo('teams-sync');
+          }
+        }).catch(err => toast('Teams ping error: ' + err.message));
+      }
+      else if (act === 'teams-config-webhooks') {
+        openTeamsConfigModal();
+      }
+      else if (act === 'teams-quick-send') {
+        openTeamsBroadcastModal(actBtn.dataset.channel || '# General Practice');
+      }
+      else if (act === 'teams-launch-huddle') {
+        const quickClient = document.getElementById('quick-teams-client');
+        const client = state.data.clients.find(c => c.id === (quickClient ? quickClient.value : 'c1'));
+        openTeamsMeetingModal();
+        const topicInp = document.getElementById('meet-topic-input');
+        if (topicInp && client) topicInp.value = `Instant Practice Review: ${client.name}`;
+      }
+      else if (act === 'broadcast-msg-teams') {
+        const msgId = actBtn.dataset.msgId;
+        const m = state.data.messages.find(x => x.id === msgId);
+        openTeamsBroadcastModal(state.activeChatChannel, m ? m.text : '');
+      }
+      else if (act === 'manual-log-time') {
+        openLogTimeModal();
+      }
+      else if (act === 'generate-invoice-wip') {
+        openWipInvoiceModal();
+      }
+      else if (act === 'new-proposal' || act === 'new-engagement') {
+        openProposalModal();
+      }
+      else if (act === 'open-esign-modal') {
+        openSignProposalModal(actBtn.dataset.propId);
+      }
+      else if (act === 'view-proposal-pdf') {
+        openViewExecutedProposal(actBtn.dataset.propId);
+      }
+      else if (act === 'copy-magic-link') {
+        copyMagicLink(actBtn.dataset.clientId, actBtn.dataset.reqId);
+      }
+      else if (act === 'send-pbc-reminder') {
+        sendPbcReminder(actBtn.dataset.reqId);
+      }
+      else if (act === 'open-ocr-preview') {
+        openOcrPreviewModal(actBtn.dataset.reqTitle || 'Client Document');
+      }
+      else if (act === 'contact-team') {
+        navigateTo('communication');
+      }
+      else if (act === 'new-chat') {
+        state.activeChatChannel = '# General Practice';
+        navigateTo('communication');
       }
       else toast(`Action triggered: ${act}`);
       return;
