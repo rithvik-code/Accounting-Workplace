@@ -14,15 +14,14 @@ Open <http://127.0.0.1:4173>. Workspace data is stored in `data/workspace.json` 
 
 ## Conversational AI
 
-Without configuration, the assistant uses a local, workspace-aware fallback and can answer basic client/workspace questions and ask follow-ups. For full model-backed conversations, set an OpenAI-compatible endpoint and key before starting the server:
+By default, chat uses the locally installed Ollama model `qwen2.5:3b`. Workspace data is sent to Ollama on this machine at `http://127.0.0.1:11434`, not to a hosted AI service. If Ollama is unavailable, the assistant falls back to basic local workspace responses. To select another installed Ollama model:
 
 ```powershell
-$env:OPENAI_API_KEY = "your-key"
-$env:OPENAI_MODEL = "gpt-4o-mini"
+$env:OLLAMA_MODEL = "qwen2.5:3b"
 node server.mjs
 ```
 
-`OPENAI_BASE_URL` defaults to `https://api.openai.com/v1` and can point at another OpenAI-compatible provider. Only workspace data included in the conversation request is sent to that provider.
+`OLLAMA_BASE_URL` defaults to `http://127.0.0.1:11434`. To use a hosted OpenAI-compatible service instead, set `AI_PROVIDER=openai`, `OPENAI_API_KEY`, and optionally `OPENAI_MODEL` / `OPENAI_BASE_URL` before starting the server. Only the workspace data included in each conversation request is passed to the selected model.
 
 ## API
 
@@ -49,4 +48,4 @@ Invoke-RestMethod -Method Delete -Uri "http://127.0.0.1:4173/api/members/$($memb
 
 Reload the app after changing members through the API so the current browser copy refreshes from the server. The member endpoints are backend routes; the existing UI has no member-management screen.
 
-The current screen still contains its original demo seed records and sign-in behavior. Making every screen start empty and editing those records entirely through user input requires changes to the existing app JavaScript; this backend preserves the frontend as requested and provides persistence and APIs for that next integration step.
+The workspace still includes its original demo seed records. Team Members is now managed in the app and persisted through `/api/members`; the other seeded screens have not yet been converted to fully user-created data. Member management is limited in the UI to the Partner role.

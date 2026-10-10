@@ -55,34 +55,59 @@ function fallbackReply(question, data, history) {
   }
   if (/due|deadline|overdue|task|work item/.test(q)) return `I found ${tasks.length} work items in your workspace${due.length ? `, with ${due.length} marked overdue, due today, pending, or in progress` : ''}. Which client or time period should I narrow that down to?`;
   if (/client|who|list/.test(q)) return `There are ${clients.length} clients in the workspace${clients.length ? `: ${clients.slice(0, 8).map(c => c.name).filter(Boolean).join(', ')}` : ''}. Ask me about one of them and I’ll summarize what the saved workspace data contains.`;
-  if (/help|what can you|capabilit/.test(q)) return 'I can answer questions about clients, work, deadlines, documents, reviews, and firm records. I can also keep track of this conversation and ask follow-up questions. For open-ended reasoning, set OPENAI_API_KEY to connect a model.';
+  if (/help|what can you|capabilit/.test(q)) return 'I can answer questions about clients, work, deadlines, documents, reviews, and firm records. I can also keep track of this conversation and ask follow-up questions.';
   if (history.length > 1) return 'I’m following along. I don’t have enough detail to answer that accurately from the available workspace data yet. Which client, task, or date range are you referring to?';
-  return 'I can help with that. Tell me which client or work area you mean, or ask about a deadline, task, document, or review in your workspace. To enable general AI reasoning, configure OPENAI_API_KEY and restart the server.';
+  return 'I can help with that. Tell me which client or work area you mean, or ask about a deadline, task, document, or review in your workspace.';
+}
+function assistantMessages(question, context, history) {
+  return [
+    { role: 'system', content: `You are a warm, conversational assistant inside an accounting practice workspace. Respond naturally, ask useful follow-up questions, remember the conversation, and ground claims about the firm in the supplied data. Never invent records or claim to have changed anything. For tax, legal, accounting, or compliance decisions, explain uncertainty and suggest professional verification. Keep answers readable. Workspace data (JSON): ${JSON.stringify(pickContext(context)).slice(0, 50000)}` },
+    ...history.slice(-12).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 5000) })),
+    { role: 'user', content: question.slice(0, 5000) }
+  ];
 }
 async function assistantReply(question, context, history) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return fallbackReply(question, context, history);
-  const endpoint = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
-  const response = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-      temperature: 0.6,
-      messages: [
-        { role: 'system', content: `You are a warm, conversational assistant inside an accounting practice workspace. Respond naturally, ask useful follow-up questions, remember the conversation, and ground claims about the firm in the supplied data. Never invent records or claim to have changed anything. For tax, legal, accounting, or compliance decisions, explain uncertainty and suggest professional verification. Keep answers readable. Workspace data (JSON): ${JSON.stringify(pickContext(context)).slice(0, 50000)}` },
-        ...history.slice(-12).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 5000) })),
-        { role: 'user', content: question.slice(0, 5000) }
-      ]
-    }),
-    signal: AbortSignal.timeout(30000)
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result.error?.message || `AI provider returned HTTP ${response.status}`);
-  return result.choices?.[0]?.message?.content?.trim() || 'I couldn’t form a response just now. Could you try asking another way?';
+  const provider = String(process.env.AI_PROVIDER || 'ollama').toLowerCase();
+  const messages = assistantMessages(question, context, history);
+  if (provider === 'openai') {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) throw new Error('AI_PROVIDER is openai but OPENAI_API_KEY is not set.');
+    const endpoint = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    const response = await fetch(`${endpoint.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', temperature: 0.6, messages }),
+      signal: AbortSignal.timeout(60000)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error?.message || `AI provider returned HTTP ${response.status}`);
+    return { answer: result.choices?.[0]?.message?.content?.trim() || 'I couldn’t form a response just now. Could you try asking another way?', mode: 'openai' };
+  }
+  if (provider === 'ollama') {
+    const endpoint = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
+    try {
+      const response = await fetch(`${endpoint}/api/chat`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: process.env.OLLAMA_MODEL || 'qwen2.5:3b', messages, stream: false, options: { temperature: 0.6 } }),
+        signal: AbortSignal.timeout(120000)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `Ollama returned HTTP ${response.status}`);
+      const answer = result.message?.content?.trim();
+      if (!answer) throw new Error('Ollama returned an empty answer.');
+      return { answer, mode: 'ollama' };
+    } catch (error) {
+      console.warn(`Ollama request failed; using local workspace fallback: ${error.message}`);
+      return { answer: fallbackReply(question, context, history), mode: 'local-fallback' };
+    }
+  }
+  return { answer: fallbackReply(question, context, history), mode: 'local-fallback' };
 }
 async function api(req, res, url) {
-  if (url.pathname === '/api/health') return send(res, 200, { ok: true, assistant: process.env.OPENAI_API_KEY ? 'model' : 'local' });
+  if (url.pathname === '/api/health') {
+    const provider = String(process.env.AI_PROVIDER || 'ollama').toLowerCase();
+    return send(res, 200, { ok: true, assistant: { provider, model: provider === 'openai' ? (process.env.OPENAI_MODEL || 'gpt-4o-mini') : (process.env.OLLAMA_MODEL || 'qwen2.5:3b') } });
+  }
   if (url.pathname === '/api/workspace' && req.method === 'GET') return send(res, 200, workspace);
   if (url.pathname === '/api/workspace' && req.method === 'PUT') {
     const incoming = await body(req);
@@ -100,7 +125,7 @@ async function api(req, res, url) {
     if (!MEMBER_ROLES.has(role)) return send(res, 400, { error: `Role must be one of: ${[...MEMBER_ROLES].join(', ')}.` });
     if (!Array.isArray(workspace.users)) workspace.users = [];
     const digits = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-    const member = { id: `u${digits}`, name, role, initials: name.split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase(), avatarBg: input.avatarBg || '#1b4d3e', createdAt: new Date().toISOString() };
+    const member = { id: `u${digits}`, name, role, initials: name.split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase(), avatarBg: input.avatarBg || '#1b4d3e', billableHours: 0, utilizationPct: 0, createdAt: new Date().toISOString() };
     workspace.users.push(member);
     await persist();
     return send(res, 201, member);
@@ -173,10 +198,11 @@ async function api(req, res, url) {
     const suppliedHistory = Array.isArray(input.history) ? input.history.slice(-12).filter(m => ['user', 'assistant'].includes(m.role) && typeof m.content === 'string') : [];
     const history = suppliedHistory.length ? suppliedHistory : (conversations.get(id) || []);
     try {
-      const answer = await assistantReply(question, input.workspace || workspace, history);
+      const result = await assistantReply(question, input.workspace || workspace, history);
+      const answer = result.answer;
       history.push({ role: 'user', content: question }, { role: 'assistant', content: answer });
       conversations.set(id, history.slice(-24));
-      return send(res, 200, { conversationId: id, answer, mode: process.env.OPENAI_API_KEY ? 'model' : 'local' });
+      return send(res, 200, { conversationId: id, answer, mode: result.mode });
     } catch (error) { return send(res, 502, { error: `Assistant unavailable: ${error.message}` }); }
   }
   return send(res, 404, { error: 'API route not found.' });

@@ -1,0 +1,1036 @@
+{
+  "firm": {
+    "name": "Rao & Co.",
+    "legalName": "Rao & Co. CPAs",
+    "monogram": "R",
+    "shortName": "R&C",
+    "brandColor": "#1b4d3e",
+    "officeLabel": "Firm Office",
+    "address": "4th Floor, Sterling Chambers, 12 Church Street, Bengaluru 560001",
+    "phone": "+91 80 4123 8890",
+    "email": "admin@raoandco.ca",
+    "gstin": "29AABCR4821M1Z4",
+    "pan": "AABCR4821M",
+    "membershipNo": "CA-2011-118742",
+    "regulator": "ICAI — Bengaluru South",
+    "footerNote": "Rao & Co., Chartered Accountants"
+  },
+  "gstRecons": [
+    {
+      "id": "gr1",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "gstin": "29AABCR4821M1Z4",
+      "period": "August 2026",
+      "month": "2026-08",
+      "toleranceAbs": 100,
+      "tolerancePct": 1,
+      "resolutions": {},
+      "purchaseRegister": [
+        {
+          "line": 1,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1001",
+          "invoiceDate": "2026-08-02",
+          "party": "Kumar Traders",
+          "taxable": 100000,
+          "igst": 18000,
+          "total": 118000
+        },
+        {
+          "line": 2,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1002",
+          "invoiceDate": "2026-08-04",
+          "party": "Sharma Steel Works",
+          "taxable": 100000,
+          "igst": 18000,
+          "total": 118000
+        },
+        {
+          "line": 3,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1003",
+          "invoiceDate": "2026-08-07",
+          "party": "Deepak Polymers",
+          "taxable": 45000,
+          "igst": 8100,
+          "total": 53100
+        },
+        {
+          "line": 4,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1004",
+          "invoiceDate": "2026-08-09",
+          "party": "Vertex Components",
+          "taxable": 186525,
+          "igst": 33575,
+          "total": 220100
+        },
+        {
+          "line": 5,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1005",
+          "invoiceDate": "2026-08-11",
+          "party": "Nandi Logistics",
+          "taxable": 76102,
+          "igst": 13698,
+          "total": 89800
+        },
+        {
+          "line": 6,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1006",
+          "invoiceDate": "2026-08-13",
+          "party": "Axis Industrial",
+          "taxable": 54237,
+          "igst": 9763,
+          "total": 64000
+        },
+        {
+          "line": 7,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1007",
+          "invoiceDate": "2026-08-15",
+          "party": "Nova Chemicals",
+          "taxable": 10593,
+          "igst": 1907,
+          "total": 12500
+        },
+        {
+          "line": 8,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "  inv-1008",
+          "invoiceDate": "2026-08-17",
+          "party": "Bharat Electricals",
+          "taxable": 60424,
+          "igst": 10876,
+          "total": 71300
+        },
+        {
+          "line": 9,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1009",
+          "invoiceDate": "2026-08-19",
+          "party": "Sundar Packaging",
+          "taxable": 262712,
+          "igst": 47288,
+          "total": 310000
+        },
+        {
+          "line": 10,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1010",
+          "invoiceDate": "2026-08-21",
+          "party": "Modern Fabrics",
+          "taxable": 23220,
+          "igst": 4180,
+          "total": 27400
+        },
+        {
+          "line": 11,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1012",
+          "invoiceDate": "2026-08-25",
+          "party": "Precision Tools",
+          "taxable": 80678,
+          "igst": 14522,
+          "total": 95200
+        },
+        {
+          "line": 12,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1014",
+          "invoiceDate": "2026-08-28",
+          "party": "Trinity Hardware",
+          "taxable": 60593,
+          "igst": 10907,
+          "total": 71500
+        },
+        {
+          "line": 13,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1015",
+          "invoiceDate": "2026-08-29",
+          "party": "Kalyan Castings",
+          "taxable": 50000,
+          "igst": 9000,
+          "total": 59000
+        }
+      ],
+      "portal2b": [
+        {
+          "line": 1,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1001",
+          "invoiceDate": "2026-08-02",
+          "party": "Kumar Traders",
+          "taxable": 100000,
+          "igst": 18000,
+          "total": 118000
+        },
+        {
+          "line": 2,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1002",
+          "invoiceDate": "2026-08-04",
+          "party": "Sharma Steel Works",
+          "taxable": 100000,
+          "igst": 18000,
+          "total": 118000
+        },
+        {
+          "line": 3,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1003",
+          "invoiceDate": "2026-08-07",
+          "party": "Deepak Polymers",
+          "taxable": 45000,
+          "igst": 9865,
+          "total": 54865
+        },
+        {
+          "line": 4,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1004",
+          "invoiceDate": "2026-08-09",
+          "party": "Vertex Components",
+          "taxable": 186525,
+          "igst": 33575,
+          "total": 220100
+        },
+        {
+          "line": 6,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1006",
+          "invoiceDate": "2026-08-13",
+          "party": "Axis Industrial",
+          "taxable": 54237,
+          "igst": 9763,
+          "total": 64000
+        },
+        {
+          "line": 7,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1007",
+          "invoiceDate": "2026-08-15",
+          "party": "Nova Chemicals",
+          "taxable": 10593,
+          "igst": 1907,
+          "total": 12550
+        },
+        {
+          "line": 8,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1008",
+          "invoiceDate": "2026-08-17",
+          "party": "Bharat Electricals",
+          "taxable": 60424,
+          "igst": 10876,
+          "total": 71300
+        },
+        {
+          "line": 10,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1010",
+          "invoiceDate": "2026-08-21",
+          "party": "Modern Fabrics",
+          "taxable": 23220,
+          "igst": 4180,
+          "total": 27400
+        },
+        {
+          "line": 11,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1011",
+          "invoiceDate": "2026-08-23",
+          "party": "Orbit Castings",
+          "taxable": 49153,
+          "igst": 8847,
+          "total": 58000
+        },
+        {
+          "line": 12,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1012",
+          "invoiceDate": "2026-08-25",
+          "party": "Precision Tools",
+          "taxable": 80678,
+          "igst": 16722,
+          "total": 97400
+        },
+        {
+          "line": 13,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1013",
+          "invoiceDate": "2026-08-26",
+          "party": "Elite Fasteners",
+          "taxable": 12119,
+          "igst": 2181,
+          "total": 14300
+        },
+        {
+          "line": 14,
+          "gstin": "29AABCR4821M1Z4",
+          "invoiceNo": "INV-1014",
+          "invoiceDate": "2026-08-28",
+          "party": "Trinity Hardware",
+          "taxable": 60593,
+          "igst": 10907,
+          "total": 71500
+        },
+        {
+          "line": 15,
+          "gstin": "27AALCK1234P1Z9",
+          "invoiceNo": "INV-1015",
+          "invoiceDate": "2026-08-29",
+          "party": "Kalyan Castings",
+          "taxable": 50000,
+          "igst": 9000,
+          "total": 59000
+        }
+      ]
+    }
+  ],
+  "bankAccounts": [
+    {
+      "id": "ba1",
+      "name": "HDFC Current A/C",
+      "balance": 2450000,
+      "asOf": "2026-10-01"
+    }
+  ],
+  "firmTaxProfile": {
+    "prevYearAssessedTax": 1850000,
+    "presumptive": false
+  },
+  "salesRegisters": [
+    {
+      "id": "sr1",
+      "clientId": "c1",
+      "month": "2026-08",
+      "taxable": 4200000,
+      "outputTax": 756000
+    },
+    {
+      "id": "sr2",
+      "clientId": "c1",
+      "month": "2026-09",
+      "taxable": 3980000,
+      "outputTax": 716400
+    },
+    {
+      "id": "sr3",
+      "clientId": "c2",
+      "month": "2026-08",
+      "taxable": 1850000,
+      "outputTax": 333000
+    },
+    {
+      "id": "sr4",
+      "clientId": "c2",
+      "month": "2026-09",
+      "taxable": 2120000,
+      "outputTax": 381600
+    },
+    {
+      "id": "sr5",
+      "clientId": "c3",
+      "month": "2026-08",
+      "taxable": 980000,
+      "outputTax": 176400
+    },
+    {
+      "id": "sr6",
+      "clientId": "c3",
+      "month": "2026-09",
+      "taxable": 1240000,
+      "outputTax": 223200
+    },
+    {
+      "id": "sr7",
+      "clientId": "c1",
+      "month": "2026-10",
+      "taxable": 4650000,
+      "outputTax": 837000
+    }
+  ],
+  "deducteeEntries": [
+    {
+      "id": "dd1",
+      "month": "2026-08",
+      "section": "194J",
+      "payee": "Kumar Traders",
+      "tdsin": "29ABCK1234M1Z2",
+      "base": 100000,
+      "rate": 10,
+      "tax": 10000
+    },
+    {
+      "id": "dd2",
+      "month": "2026-08",
+      "section": "194J",
+      "payee": "Axis Industrial",
+      "tdsin": "29AADA8765K1Z8",
+      "base": 250000,
+      "rate": 2,
+      "tax": 5000
+    },
+    {
+      "id": "dd3",
+      "month": "2026-08",
+      "section": "194I",
+      "payee": "Sterling Properties",
+      "tdsin": "29AASTS2211M1Z9",
+      "base": 850000,
+      "rate": 10,
+      "tax": 85000
+    },
+    {
+      "id": "dd4",
+      "month": "2026-09",
+      "section": "194J",
+      "payee": "Modern Fabrics",
+      "tdsin": "29AAMF9921K1Z4",
+      "base": 400000,
+      "rate": 2,
+      "tax": 8000
+    },
+    {
+      "id": "dd5",
+      "month": "2026-09",
+      "section": "194J",
+      "payee": "Precision Tools",
+      "tdsin": "29AAPT5521K1Z7",
+      "base": 900000,
+      "rate": 2,
+      "tax": 18000
+    },
+    {
+      "id": "dd6",
+      "month": "2026-09",
+      "section": "194C",
+      "payee": "Nova Chemicals",
+      "tdsin": "29AANC7788K1Z1",
+      "base": 600000,
+      "rate": 1,
+      "tax": 6000
+    },
+    {
+      "id": "dd7",
+      "month": "2026-10",
+      "section": "194J",
+      "payee": "Trinity Hardware",
+      "tdsin": "29AATH3311K1Z6",
+      "base": 750000,
+      "rate": 2,
+      "tax": 15000
+    }
+  ],
+  "payrollRuns": [
+    {
+      "id": "pr1",
+      "month": "2026-08",
+      "gross": 620000,
+      "pfEmployee": 55800,
+      "pfEmployer": 22320,
+      "esi": 4600,
+      "net": 536700
+    },
+    {
+      "id": "pr2",
+      "month": "2026-09",
+      "gross": 645000,
+      "pfEmployee": 58050,
+      "pfEmployer": 23220,
+      "esi": 4790,
+      "net": 558140
+    },
+    {
+      "id": "pr3",
+      "month": "2026-10",
+      "gross": 658000,
+      "pfEmployee": 59220,
+      "pfEmployer": 23680,
+      "esi": 4880,
+      "net": 569220
+    }
+  ],
+  "payments": [
+    {
+      "id": "pm1",
+      "kind": "Operational",
+      "title": "Office rent — Sterling Chambers",
+      "category": "Rent",
+      "dueDate": "2026-10-05",
+      "amount": 85000,
+      "preparedBy": "Priya Nair",
+      "status": "Open",
+      "approvals": []
+    },
+    {
+      "id": "pm2",
+      "kind": "Operational",
+      "title": "Statutory audit fee — ABC Manufacturing",
+      "category": "Professional",
+      "dueDate": "2026-10-12",
+      "amount": 425000,
+      "preparedBy": "Rahul Mehta",
+      "status": "Open",
+      "approvals": []
+    },
+    {
+      "id": "pm3",
+      "kind": "Operational",
+      "title": "Cloud hosting and software licences",
+      "category": "Software",
+      "dueDate": "2026-10-18",
+      "amount": 47200,
+      "preparedBy": "Arjun Rao",
+      "status": "Open",
+      "approvals": []
+    },
+    {
+      "id": "pm4",
+      "kind": "Operational",
+      "title": "Loan EMI — working capital term loan",
+      "category": "Loan",
+      "dueDate": "2026-10-07",
+      "amount": 156000,
+      "preparedBy": "Rithvik Shah",
+      "status": "Paid",
+      "approvals": []
+    },
+    {
+      "id": "pm5",
+      "kind": "Operational",
+      "title": "Insurance premium — professional indemnity",
+      "category": "Insurance",
+      "dueDate": "2026-11-02",
+      "amount": 96500,
+      "preparedBy": "Priya Nair",
+      "status": "Open",
+      "approvals": []
+    }
+  ],
+  "users": [
+    {
+      "id": "u1",
+      "name": "Rithvik Shah",
+      "role": "Partner",
+      "initials": "RS",
+      "avatarBg": "#6d42c7",
+      "billableHours": 22,
+      "utilizationPct": 48
+    },
+    {
+      "id": "u2",
+      "name": "Rahul Mehta",
+      "role": "Manager",
+      "initials": "RM",
+      "avatarBg": "#1b4d3e",
+      "billableHours": 38,
+      "utilizationPct": 92
+    },
+    {
+      "id": "u3",
+      "name": "Priya Nair",
+      "role": "Senior",
+      "initials": "PN",
+      "avatarBg": "#ca7007",
+      "billableHours": 34,
+      "utilizationPct": 81
+    },
+    {
+      "id": "u4",
+      "name": "Arjun Rao",
+      "role": "Accountant",
+      "initials": "AR",
+      "avatarBg": "#225cb8",
+      "billableHours": 40,
+      "utilizationPct": 96
+    },
+    {
+      "id": "u5",
+      "name": "Neha Sharma",
+      "role": "Trainee",
+      "initials": "NS",
+      "avatarBg": "#1f7a4c",
+      "billableHours": 18,
+      "utilizationPct": 44
+    }
+  ],
+  "clients": [
+    {
+      "id": "c1",
+      "code": "ABC",
+      "name": "ABC Manufacturing Pvt Ltd",
+      "status": "Active",
+      "contact": "Mr. Sharma (CFO)",
+      "email": "sharma@abcmfg.com",
+      "manager": "Rahul Mehta",
+      "senior": "Priya Nair",
+      "industry": "Manufacturing",
+      "docsCount": 147,
+      "color": "#1b4d3e"
+    },
+    {
+      "id": "c2",
+      "code": "XYZ",
+      "name": "XYZ Software Solutions",
+      "status": "Active",
+      "contact": "Ms. Kapoor",
+      "email": "kapoor@xyztech.io",
+      "manager": "Rahul Mehta",
+      "senior": "Priya Nair",
+      "industry": "Technology",
+      "docsCount": 42,
+      "color": "#225cb8"
+    },
+    {
+      "id": "c3",
+      "code": "DEF",
+      "name": "DEF Professional Services",
+      "status": "Attention",
+      "contact": "Mr. Verma",
+      "email": "verma@defservices.in",
+      "manager": "Priya Nair",
+      "senior": "Arjun Rao",
+      "industry": "Consulting",
+      "docsCount": 89,
+      "color": "#c93b34"
+    },
+    {
+      "id": "c4",
+      "code": "NM",
+      "name": "Nimble Media & Advertising",
+      "status": "Active",
+      "contact": "Ms. Roy",
+      "email": "roy@nimblemedia.com",
+      "manager": "Rahul Mehta",
+      "senior": "Arjun Rao",
+      "industry": "Media",
+      "docsCount": 31,
+      "color": "#ca7007"
+    },
+    {
+      "id": "c5",
+      "code": "KC",
+      "name": "Kapur Real Estate Developers",
+      "status": "Active",
+      "contact": "Mr. Kapur",
+      "email": "kapur@kapurrealty.com",
+      "manager": "Priya Nair",
+      "senior": "Neha Sharma",
+      "industry": "Real Estate",
+      "docsCount": 65,
+      "color": "#6d42c7"
+    }
+  ],
+  "engagements": [
+    {
+      "id": "e1",
+      "clientId": "c1",
+      "title": "FY 2025–26 Statutory Audit",
+      "type": "Audit",
+      "manager": "Rahul Mehta",
+      "senior": "Priya Nair",
+      "associates": [
+        "Arjun Rao",
+        "Rithvik Shah"
+      ],
+      "progress": 78,
+      "feeTotal": 850000,
+      "feeBilled": 663000,
+      "realizationPct": 78,
+      "tasksTotal": 34,
+      "tasksCompleted": 26,
+      "tasksOverdue": 2,
+      "docsCount": 147,
+      "reviewsPending": 2,
+      "deadline": "2026-09-30"
+    },
+    {
+      "id": "e2",
+      "clientId": "c1",
+      "title": "Monthly GST Compliance & Filing",
+      "type": "GST",
+      "manager": "Rahul Mehta",
+      "senior": "Priya Nair",
+      "associates": [
+        "Arjun Rao"
+      ],
+      "progress": 60,
+      "feeTotal": 240000,
+      "feeBilled": 132000,
+      "realizationPct": 55,
+      "tasksTotal": 10,
+      "tasksCompleted": 6,
+      "tasksOverdue": 1,
+      "docsCount": 18,
+      "reviewsPending": 1,
+      "deadline": "2026-09-12"
+    },
+    {
+      "id": "e3",
+      "clientId": "c2",
+      "title": "Q2 Tax Provisioning & Returns",
+      "type": "Tax",
+      "manager": "Rahul Mehta",
+      "senior": "Arjun Rao",
+      "associates": [
+        "Neha Sharma"
+      ],
+      "progress": 90,
+      "feeTotal": 420000,
+      "feeBilled": 399000,
+      "realizationPct": 95,
+      "tasksTotal": 12,
+      "tasksCompleted": 11,
+      "tasksOverdue": 0,
+      "docsCount": 24,
+      "reviewsPending": 1,
+      "deadline": "2026-10-31"
+    },
+    {
+      "id": "e4",
+      "clientId": "c3",
+      "title": "Internal Financial Control Audit",
+      "type": "Audit",
+      "manager": "Priya Nair",
+      "senior": "Arjun Rao",
+      "associates": [
+        "Neha Sharma"
+      ],
+      "progress": 35,
+      "feeTotal": 610000,
+      "feeBilled": 189100,
+      "realizationPct": 31,
+      "tasksTotal": 20,
+      "tasksCompleted": 7,
+      "tasksOverdue": 2,
+      "docsCount": 45,
+      "reviewsPending": 0,
+      "deadline": "2026-09-25"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "Bank Reconciliation – August 2026",
+      "clientId": "c1",
+      "engagementId": "e1",
+      "assignedTo": "Priya Nair",
+      "reviewer": "Rahul Mehta",
+      "createdDate": "2026-09-02",
+      "dueDate": "2026-09-07",
+      "priority": "High",
+      "status": "In Progress",
+      "attachments": [
+        "Bank_Statement_Aug.pdf"
+      ],
+      "commentsCount": 3,
+      "stage": "Prep"
+    },
+    {
+      "id": "t2",
+      "title": "Prepare GST Reconciliation Statement",
+      "clientId": "c1",
+      "engagementId": "e2",
+      "assignedTo": "Rithvik Shah",
+      "reviewer": "Priya Nair",
+      "createdDate": "2026-09-04",
+      "dueDate": "2026-09-10",
+      "priority": "High",
+      "status": "Ready for Review",
+      "attachments": [
+        "GST_Draft_v1.xlsx"
+      ],
+      "commentsCount": 2,
+      "stage": "Review"
+    },
+    {
+      "id": "t3",
+      "title": "Review Payroll Reports & Tax Deductions",
+      "clientId": "c2",
+      "engagementId": "e3",
+      "assignedTo": "Arjun Rao",
+      "reviewer": "Rahul Mehta",
+      "createdDate": "2026-09-03",
+      "dueDate": "2026-09-08",
+      "priority": "Medium",
+      "status": "In Progress",
+      "attachments": [
+        "Payroll_Summary_Aug.xlsx"
+      ],
+      "commentsCount": 1,
+      "stage": "Prep"
+    },
+    {
+      "id": "t4",
+      "title": "Verify Vendor Invoice Register vs GSTR-2B",
+      "clientId": "c3",
+      "engagementId": "e4",
+      "assignedTo": "Neha Sharma",
+      "reviewer": "Priya Nair",
+      "createdDate": "2026-08-30",
+      "dueDate": "2026-09-05",
+      "priority": "High",
+      "status": "Changes Requested",
+      "attachments": [
+        "GSTR2B_Discrepancies.xlsx"
+      ],
+      "commentsCount": 4,
+      "stage": "Prep"
+    },
+    {
+      "id": "t5",
+      "title": "Finalize Income Tax Computation Draft",
+      "clientId": "c1",
+      "engagementId": "e1",
+      "assignedTo": "Priya Nair",
+      "reviewer": "Rithvik Shah",
+      "createdDate": "2026-09-01",
+      "dueDate": "2026-09-15",
+      "priority": "Medium",
+      "status": "Not Started",
+      "attachments": [],
+      "commentsCount": 0,
+      "stage": "Docs"
+    }
+  ],
+  "documents": [
+    {
+      "id": "d1",
+      "name": "Bank_Statement_Aug_2026.pdf",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "engagementTitle": "FY 2025–26 Statutory Audit",
+      "uploadedBy": "Priya Nair",
+      "uploadDate": "2026-09-06 09:31",
+      "version": "v2.0",
+      "status": "Waiting for Review",
+      "reviewer": "Rahul Mehta",
+      "size": "2.4 MB",
+      "category": "Bank",
+      "comments": [
+        {
+          "author": "Priya Nair",
+          "text": "Please verify transactions #142 to #149 in tab 2.",
+          "time": "09:35 AM"
+        }
+      ]
+    },
+    {
+      "id": "d2",
+      "name": "GST_Returns_Q2_Summary.xlsx",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "engagementTitle": "Monthly GST Compliance & Filing",
+      "uploadedBy": "Arjun Rao",
+      "uploadDate": "2026-09-05 14:20",
+      "version": "v1.1",
+      "status": "Approved",
+      "reviewer": "Priya Nair",
+      "size": "890 KB",
+      "category": "GST",
+      "comments": [
+        {
+          "author": "Priya Nair",
+          "text": "All reconciliations match GSTR-3B. Approved.",
+          "time": "16:00 PM"
+        }
+      ]
+    },
+    {
+      "id": "d3",
+      "name": "Purchase_Invoice_Register_Aug.xlsx",
+      "clientId": "c3",
+      "clientName": "DEF Professional Services",
+      "engagementTitle": "Internal Financial Control Audit",
+      "uploadedBy": "Neha Sharma",
+      "uploadDate": "2026-09-04 11:15",
+      "version": "v1.0",
+      "status": "Returned",
+      "reviewer": "Priya Nair",
+      "size": "1.2 MB",
+      "category": "Expenses",
+      "comments": [
+        {
+          "author": "Priya Nair",
+          "text": "Invoice #827 clarification missing. Please return to client.",
+          "time": "12:08 PM"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "id": "r1",
+      "clientId": "c1",
+      "clientName": "ABC Manufacturing Pvt Ltd",
+      "title": "August Financial Documents Request",
+      "dueDate": "2026-09-08",
+      "items": [
+        {
+          "label": "Bank Statement – August 2026",
+          "done": true
+        },
+        {
+          "label": "Purchase Register – August 2026",
+          "done": true
+        },
+        {
+          "label": "Payroll Summary – August 2026",
+          "done": true
+        },
+        {
+          "label": "Outstanding Invoices Clarification",
+          "done": false
+        }
+      ],
+      "status": "3 of 4 received"
+    },
+    {
+      "id": "r2",
+      "clientId": "c2",
+      "clientName": "XYZ Software Solutions",
+      "title": "Q2 Tax Audit Documentation Request",
+      "dueDate": "2026-09-10",
+      "items": [
+        {
+          "label": "Form 16B Certificates",
+          "done": false
+        },
+        {
+          "label": "Foreign Remittance Invoices",
+          "done": false
+        }
+      ],
+      "status": "Waiting for response (2 days)"
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "channel": "# General",
+      "author": "Rithvik Shah",
+      "authorInitials": "RS",
+      "time": "09:14 AM",
+      "text": "Good morning team — reminder that ABC Manufacturing’s GST filing is ready for final manager review today."
+    },
+    {
+      "id": "m2",
+      "channel": "# General",
+      "author": "Priya Nair",
+      "authorInitials": "PN",
+      "time": "09:18 AM",
+      "text": "Uploaded the August bank statement to the ABC client workspace. Assigned Rahul for approval."
+    },
+    {
+      "id": "m3",
+      "channel": "# General",
+      "author": "Arjun Rao",
+      "authorInitials": "AR",
+      "time": "10:02 AM",
+      "text": "Thanks! I will complete the XYZ payroll reconciliation before 1:00 PM."
+    }
+  ],
+  "announcements": [
+    {
+      "id": "a1",
+      "title": "📢 Updated Document Naming SOP for Audit Engagements",
+      "date": "2026-09-04",
+      "author": "Rithvik Shah",
+      "content": "Please ensure all client upload files follow the pattern [ClientCode]_[DocType]_[Period].pdf."
+    },
+    {
+      "id": "a2",
+      "title": "📅 September Tax Deadline Calendar Released",
+      "date": "2026-09-01",
+      "author": "Rahul Mehta",
+      "content": "All GST filings due by Sept 12. Advance tax computations due Sept 15."
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "al_1791624613655",
+      "time": "2026-10-10 09:30",
+      "user": "Rithvik Shah",
+      "action": "Signed in",
+      "target": "Partner session started"
+    },
+    {
+      "id": "al1",
+      "time": "2026-09-06 09:31",
+      "user": "Priya Nair",
+      "action": "Uploaded Document",
+      "target": "Bank_Statement_Aug_2026.pdf (ABC Ltd)"
+    },
+    {
+      "id": "al2",
+      "time": "2026-09-06 09:47",
+      "user": "Rahul Mehta",
+      "action": "Assigned Task",
+      "target": "Bank Reconciliation to Priya Nair"
+    },
+    {
+      "id": "al3",
+      "time": "2026-09-06 11:12",
+      "user": "Rithvik Shah",
+      "action": "Submitted Work",
+      "target": "GST Reconciliation Statement"
+    },
+    {
+      "id": "al4",
+      "time": "2026-09-06 12:08",
+      "user": "Priya Nair",
+      "action": "Returned Document",
+      "target": "Purchase_Invoice_Register_Aug.xlsx"
+    },
+    {
+      "id": "al5",
+      "time": "2026-09-06 15:01",
+      "user": "Priya Nair",
+      "action": "Approved Document",
+      "target": "GST_Returns_Q2_Summary.xlsx"
+    }
+  ],
+  "knowledgeBase": [
+    {
+      "id": "kb1",
+      "category": "GST & Indirect Tax",
+      "title": "GSTR-3B vs GSTR-2B Reconciliation SOP",
+      "desc": "Step-by-step procedure to resolve ITC discrepancies between purchase register and GSTR-2B portal downloads.",
+      "steps": [
+        "Download GSTR-2B JSON from GST portal.",
+        "Import purchase register into reconciliation tool.",
+        "Flag matched invoices, supplier mismatch, and missing ITC.",
+        "Prepare discrepancy letter for supplier notification."
+      ]
+    },
+    {
+      "id": "kb2",
+      "category": "Statutory Audit",
+      "title": "Bank Confirmation & Reconciliation Standard",
+      "desc": "Mandatory audit procedures for verifying external bank balances and outstanding cheques.",
+      "steps": [
+        "Obtain balance confirmation directly from bank under SA 505.",
+        "Trace unpresented cheques beyond 90 days.",
+        "Verify bank charges and interest accruals against bank statements."
+      ]
+    },
+    {
+      "id": "kb3",
+      "category": "Internal Policies",
+      "title": "4-Stage Work Approval & Quality Review Workflow",
+      "desc": "Firm SOP outlining responsibilities from Staff Preparation to Manager Approval.",
+      "steps": [
+        "Staff / Associate prepares working papers and uploads attachments.",
+        "Senior Accountant conducts technical verification and checks calculations.",
+        "Manager conducts engagement review and signs off on compliance.",
+        "Partner grants final sign-off before client delivery."
+      ]
+    }
+  ]
+}
